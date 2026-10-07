@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- NOTE: page title + description shown in browser tab / link previews. Edit freely. -->
+<title>my little hotel</title>
+<meta name="description" content="My website and blog.">
+
+<style>
+/* =====================================================================
+   1. THEME  -  change colors/fonts here, everything else follows
+   ===================================================================== */
+:root {
+  --bg:        #110d15;   /* page background */
+  --panel:     #1c1622;   /* box background */
+  --panel-2:   #281f30;   /* hover / secondary */
+  --border:    #6e5380;   /* box borders */
+  --text:      #ece3f0;   /* normal text */
+  --muted:     #a894b4;   /* dim text */
+  --accent:    #ffe38a;   /* headings, links on hover (moon yellow) */
+  --link:      #ff9fc4;   /* link color */
+  --font:      "Trebuchet MS", Verdana, sans-serif;   /* swap for any font stack */
+  --mono:      ui-monospace, Consolas, monospace;
+  --width:     960px;     /* max page width */
+  --sidebar:   200px;     /* left nav width */
+  --radius:    14px;      /* how round the boxes are (0 = square, 24px = very round) */
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; min-height: 100vh;
+  background: var(--bg); color: var(--text);
+  font: 15px/1.6 var(--font);
+  /* NOTE: to use an image background instead, e.g.:
+     background: var(--bg) url("images/bg.png"); */
+  background-image: radial-gradient(ellipse at 20% 0%, #2d1a33 0%, transparent 60%);
+  background-attachment: fixed;
+}
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--accent); text-decoration: underline wavy; }
+h1, h2, h3 { color: var(--accent); margin: .2em 0 .4em; font-weight: normal; }
+h1 { font-size: 1.9em; text-align: center; }
+h2 { font-size: 1.4em; }
+h3 { font-size: 1.1em; }
+small, .muted { color: var(--muted); }
+code { font-family: var(--mono); background: #0006; padding: 1px 5px; }
+
+/* rain canvas sits behind everything and never blocks clicks */
+#rain { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+/* =====================================================================
+   2. LAYOUT
+   ===================================================================== */
+#wrap { position: relative; z-index: 1; max-width: var(--width); margin: 0 auto; padding: 16px; }
+header { text-align: center; padding: 18px 0 10px; }
+#layout { display: grid; grid-template-columns: var(--sidebar) 1fr; gap: 16px; align-items: start; }
+
+.box {
+  /* slightly see-through so the skyline peeks through; raise 92% toward 100% for solid boxes */
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07);
+  padding: 14px 18px; margin-bottom: 16px;
+}
+.box > h2:first-child { margin-top: 0; padding-bottom: 6px; border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, var(--border), transparent) 1; }
+
+/* sidebar sticks while you scroll */
+#side { position: sticky; top: 12px; }
+#nav a { display: block; padding: 2px 4px; }
+#nav a:hover { background: var(--panel-2); border-radius: 8px; text-decoration: none; }
+
+/* phone layout: sidebar goes on top */
+@media (max-width: 720px) {
+  #layout { grid-template-columns: 1fr; }
+  #side { position: static; }
+}
+
+/* =====================================================================
+   3. SECTION TYPES  (styles for the renderers in the JS below)
+   ===================================================================== */
+.divider { text-align: center; color: var(--accent); letter-spacing: 8px; margin: 4px 0 12px; }
+.post { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; flex-wrap: wrap; }
+.card { background: var(--panel-2); border: 1px solid color-mix(in srgb, var(--border) 60%, transparent); border-radius: calc(var(--radius) - 4px); padding: 8px 12px; margin: 8px 0; }
+.card h3 { margin: 0; }
+.buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+/* 88x31 retro buttons. If you use real images, they'll be sized by this */
+.btn88 {
+  width: 88px; height: 31px; display: inline-flex; align-items: center; justify-content: center;
+  font: 10px var(--mono); text-align: center; line-height: 1.1; color: #fff;
+  border: 2px outset #889; image-rendering: pixelated; overflow: hidden;
+}
+.btn88:hover { filter: brightness(1.3); text-decoration: none; color: #fff; }
+.btn88 img { width: 88px; height: 31px; display: block; }
+.status-ok { color: #7dffa0; font-family: var(--mono); }
+.toggles label { display: block; cursor: pointer; }
+#mood { float: right; }
+footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 0 24px; }
+
+/* =====================================================================
+   8. NEON SIGN + STREETLIGHTS + GALLERY STYLES
+   ===================================================================== */
+/* NEON: change the glow color by swapping #ff4fd8 / #d100b0 (e.g. cyan: #3df5ff / #0090b0) */
+.neon {
+  font-family: "Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive;  /* NOTE: sign font */
+  font-size: clamp(2.2rem, 8vw, 3.8rem); color: #ffe9fb; white-space: pre-wrap; margin: 6px 0;
+  text-shadow: 0 0 4px #fff, 0 0 10px #ff4fd8, 0 0 22px #ff4fd8, 0 0 42px #d100b0, 0 0 80px #d100b0;
+  animation: buzz 5s infinite;
+}
+.neon span.fl { animation: flick 3.4s infinite; }
+@keyframes buzz  { 0%,100% { opacity: 1 } 46% { opacity: 1 } 47% { opacity: .9 } 48% { opacity: 1 } }
+@keyframes flick {  /* mostly on, with quick stutters. Change the % to change timing */
+  0%,17%,23%,26%,54%,58%,100% { opacity: 1 }
+  18%,21%,55% { opacity: .15; color: #7a4a74; text-shadow: none }
+  19%,24%     { opacity: .9 }
+}
+
+/* STREETLIGHTS: --h = pole height. Move with left/right. */
+#lamps { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.lamp { --shift: -50px; position: absolute; bottom: 18px; left: 20px; width: 6px;
+        height: var(--h, clamp(120px, 20vh, 220px));   /* NOTE: pole height. Keep it below your tallest buildings */
+        transform: translateY(calc(var(--p, 0) * var(--shift)));
+        background: linear-gradient(90deg, #3d3248, #171220); transform-origin: 3px 100%; }
+.lamp::before { content: ""; position: absolute; top: 0; left: 0; width: 54px; height: 6px;
+        background: #2c2336; border-radius: 0 6px 0 0; }                       /* the arm */
+.lamp b { position: absolute; top: 6px; left: 34px; width: 24px; height: 8px; background: #fff3c4;
+        border-radius: 0 0 14px 14px;
+        box-shadow: 0 0 12px 4px var(--accent), 0 8px 30px 10px rgba(255,227,138,.35); } /* the bulb */
+.lamp u { position: absolute; top: 14px; left: -14px; width: 120px; height: calc(var(--h, clamp(120px, 20vh, 220px)) - 14px);      /* the light cone */
+        clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+        background: linear-gradient(rgba(255,227,138,.22), transparent); }
+.lamp.r { left: auto; right: 20px; transform: translateY(calc(var(--p, 0) * var(--shift))) scaleX(-1); }
+.lamp.far { --shift: -35px; bottom: 22px; left: 120px; opacity: .55; transform: translateY(calc(var(--p, 0) * var(--shift))) scale(.6); }
+.lamp.far.r { left: auto; right: 120px; transform: translateY(calc(var(--p, 0) * var(--shift))) scale(-.6, .6); }
+.lamp.flick b, .lamp.flick u { animation: lampflick 7s infinite; }
+@keyframes lampflick { 0%,100%{opacity:1} 40%{opacity:1} 41%{opacity:.3} 43%{opacity:1} 45%{opacity:.5} 47%{opacity:1} }
+@media (max-width: 1000px) { .lamp.far { display: none; } }
+@media (prefers-reduced-motion: reduce) { .neon, .neon span.fl, .lamp.flick b, .lamp.flick u { animation: none; } }
+
+/* GALLERY: columns = masonry. Change "3 200px" -> about 3 columns, each at least 200px wide */
+.gallery { columns: 3 200px; column-gap: 10px; }
+.gallery figure { margin: 0 0 10px; break-inside: avoid; background: var(--panel-2);
+                  border: 1px solid var(--border); padding: 4px; cursor: zoom-in; }
+.gallery img { width: 100%; display: block; }
+.gallery figcaption { font-size: 12px; color: var(--muted); padding: 3px 2px 0; }
+.gallery figure:hover { border-color: var(--accent); }
+.gallery .ph { cursor: default; }
+.gallery .ph div { background: linear-gradient(135deg, hsl(var(--hue) 40% 25%), hsl(calc(var(--hue) + 60) 40% 15%)); }
+
+/* PHOTO VIEWER */
+#lb { position: fixed; inset: 0; z-index: 10; background: rgba(4,6,16,.93);
+      display: flex; align-items: center; justify-content: center; gap: 8px; }
+#lb[hidden] { display: none; }
+#lb figure { margin: 0; text-align: center; max-width: 86vw; }
+#lb img { max-width: 86vw; max-height: 82vh; border: 2px ridge var(--border); }
+#lb figcaption { color: var(--text); padding-top: 6px; }
+#lb button { background: none; border: 0; color: var(--accent); font-size: 40px; cursor: pointer; padding: 8px; }
+#lb-x { position: absolute; top: 6px; right: 10px; font-size: 26px !important; }
+
+/* SKYLINE (buildings): fixed to the bottom, behind rain + lamps. height = how tall the city is */
+#skyline { position: fixed; left: 0; right: 0; bottom: 0; height: 75vh; /* NOTE: how much of the screen the city fills (0-100vh) */ z-index: 0; pointer-events: none; }
+/* PARALLAX: JS sets --p (0 at page top -> 1 at page bottom). Each layer slides up by --shift * --p.
+   Bigger --shift = closer to you = moves more. Layers hang 90px below the screen so no gap shows. */
+.sky-layer { position: absolute; left: 0; right: 0; bottom: -90px; height: calc(100% + 90px);
+             transform: translateY(calc(var(--p, 0) * var(--shift, 0px))); }
+.sky-layer svg { width: 100%; height: 100%; display: block; }
+/* the street the lamps stand on (moves with the closest layer) */
+#street { --shift: -50px; position: absolute; left: 0; right: 0; bottom: -130px; height: 160px;
+          background: linear-gradient(#1c1523, #0b080f 45%); border-top: 1px solid #3b2d47;
+          transform: translateY(calc(var(--p, 0) * var(--shift))); }
+#content { min-width: 0; }
+#gallery { scroll-margin-top: 12px; }
+
+/* extra rounding for small things (they follow --radius) */
+.btn88 { border-radius: 5px; }
+.gallery figure { border-radius: calc(var(--radius) - 4px); }
+.gallery img { border-radius: calc(var(--radius) - 8px); }
+#lb img { border-radius: var(--radius); }
+code { border-radius: 4px; }
+
+/* MOON + STARS + MOONLIGHT
+   NOTE: --moon-size / --moon-x / --moon-y place the moon (x = distance from the RIGHT edge, y = from the top).
+   The glow and beam are centered on it automatically. To put it top-LEFT, see the comment on #moon. */
+:root { --moon-size: clamp(56px, 9vw, 96px); --moon-x: calc(var(--moon-size) / 2 + 34px); --moon-y: calc(var(--moon-size) / 2 + 26px);
+        --moonlight: 235, 225, 255; }   /* NOTE: moonlight color as R, G, B */
+#sky { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+       transform: translateY(calc(var(--p, 0) * -10px)); }   /* sky drifts the least (parallax) */
+#stars { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tw { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff;
+      box-shadow: 0 0 4px 1px rgba(255,255,255,.7); animation: tw var(--d) ease-in-out infinite; animation-delay: var(--dl); }
+@keyframes tw { 0%,100% { opacity: .15 } 50% { opacity: 1 } }
+#moon { position: absolute; top: calc(var(--moon-y) - var(--moon-size) / 2); right: calc(var(--moon-x) - var(--moon-size) / 2);
+        /* top-LEFT moon: replace "right:" with "left:" on the line above */
+        width: var(--moon-size); height: var(--moon-size); border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #fffdf0, #f1ead0 55%, #cfc6a6);
+        box-shadow: 0 0 30px 8px rgba(255,248,215,.5), 0 0 90px 30px rgba(255,240,200,.22), 0 0 220px 80px rgba(var(--moonlight), .12); }
+#moon::before { content: ""; position: absolute; inset: 0; border-radius: 50%;   /* craters */
+        background: radial-gradient(circle at 30% 62%, rgba(120,108,85,.28) 0 9%, transparent 10%),
+                    radial-gradient(circle at 63% 34%, rgba(120,108,85,.22) 0 12%, transparent 13%),
+                    radial-gradient(circle at 70% 72%, rgba(120,108,85,.25) 0 7%, transparent 8%); }
+#moonlight { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+        background: radial-gradient(circle at calc(100% - var(--moon-x)) var(--moon-y),
+                    rgba(var(--moonlight), .20), rgba(var(--moonlight), .07) 28%, transparent 60%); }   /* NOTE: .20 = glow strength */
+#moonlight::after { content: ""; position: absolute; inset: 0;     /* the beam, widening toward the bottom-left */
+        clip-path: polygon(calc(100% - var(--moon-x) + 40px) var(--moon-y), calc(100% - var(--moon-x) - 40px) var(--moon-y), 0 100%, 55% 100%);
+        background: linear-gradient(to bottom, rgba(var(--moonlight), .10), transparent 85%); }   /* NOTE: .10 = beam strength */
+@media (prefers-reduced-motion: reduce) { .tw { animation: none; opacity: .7; } }
+</style>
+</head>
+
+<body>
+<!-- BACKGROUND (back to front): stars + moon -> buildings -> moonlight -> far lamps -> street -> near lamps -> rain.
+     Buildings are built by JS (section 11). Everything here drifts a little as you scroll. -->
+<!-- SKY: stars + moon (built by JS in section 13), drawn behind the buildings -->
+<div id="sky" aria-hidden="true"><canvas id="stars"></canvas><div id="moon"></div></div>
+<div id="skyline" aria-hidden="true"></div>
+<!-- MOONLIGHT: a soft glow + beam from the moon, laid OVER the buildings so they catch some light -->
+<div id="moonlight" aria-hidden="true"></div>
+
+<!-- STREETLIGHTS: pure CSS. They stand on the street strip, shorter than the tallest buildings.
+     "r" = right side, "far" = smaller/dimmer, "flick" = flickers. Copy a line to add more;
+     move one with left:/right: in the CSS (section 8). Far ones go BEFORE #street so the street hides their base. -->
+<div id="lamps" aria-hidden="true">
+  <div class="lamp far"><b></b><u></u></div>
+  <div class="lamp far r"><b></b><u></u></div>
+  <div id="street"></div>
+  <div class="lamp"><b></b><u></u></div>
+  <div class="lamp r flick"><b></b><u></u></div>
+</div>
+<canvas id="rain"></canvas>
+
+<div id="wrap">
+  <header>
+    <h1 id="site-title" class="neon"></h1>
+    <small id="site-tagline"></small>
+  </header>
+
+  <div id="layout">
+    <aside id="side">
+      <div class="box">
+        <h3>✩ Stars</h3>
+        <nav id="nav"></nav>
+      </div>
+      <div class="box toggles">
+        <h3>Settings</h3>
+        <!-- NOTE: each checkbox's data-pref name is saved in localStorage, wired up in JS section 6 -->
+        <label><input type="checkbox" data-pref="rainOff"> Disable rain</label>
+        <label><input type="checkbox" data-pref="rainHeavy"> Heavy rain</label>
+      </div>
+      <div class="box">
+        <h3>I'm <span class="status-ok">Online!</span></h3>
+        <small id="now-playing"></small>
+      </div>
+    </aside>
+
+    <!-- every section from CONTENT gets rendered in here -->
+    <div id="content">
+      <main id="main"></main>
+      <div class="divider" id="gallery-divider">☾ ✦ ☾</div>
+      <!-- GALLERY: just keeps scrolling down from the sections above. Filled in by JS (section 9). -->
+      <main id="gallery"></main>
+    </div>
+  </div>
+
+  <footer id="footer"></footer>
+</div>
+
+<!-- Photo viewer (click a photo in the gallery). Arrow keys + Esc work. -->
+<div id="lb" hidden>
+  <button id="lb-prev" aria-label="Previous">‹</button>
+  <figure><img id="lb-img" alt=""><figcaption id="lb-cap"></figcaption></figure>
+  <button id="lb-next" aria-label="Next">›</button>
+  <button id="lb-x" aria-label="Close">✕</button>
+</div>
+
+<script>
+/* =====================================================================
+   TURN SECTIONS OFF  -  list the ids of sections you want hidden.
+   A hidden section disappears from the page AND from the Stars sidebar.
+   Delete an id (or the whole list) to bring it back. Nothing is deleted from your content.
+
+   Current ids:  "home"  "blog"  "projects"  "status"  "links"  "findme"  "gallery"
+   (any section you add in SECTIONS below works too - use its id)
+   ===================================================================== */
+const DISABLED = [
+  // "status",
+  // "gallery",
+];
+
+/* =====================================================================
+   4. YOUR CONTENT  -  THIS IS THE PART YOU EDIT 99% OF THE TIME
+   =====================================================================
+   Each entry in SECTIONS becomes one box on the page AND one link in the
+   sidebar nav automatically.  To add a new section: copy any entry,
+   paste it where you want it to appear, change the fields. Done.
+
+   Fields every section has:
+     id    - unique, no spaces (used for the #link)
+     title - heading text
+     type  - how it's displayed. One of:
+
+       "text"     -> body: "html string"          (paragraphs, links, <b>, <ul>, anything)
+       "posts"    -> items: [{title, url, date}]  (blog list)
+       "cards"    -> items: [{title, url, desc}]  (projects)
+       "buttons"  -> items: [{label, url, img?, color?}]
+                      (img = path to an 88x31 gif/png; without img you get a colored text button)
+       "status"   -> items: [{name, ok}]          (the "systems OK" thing; ok: true/false)
+       "html"     -> body: "raw html"             (escape hatch, same as text but no <p> wrap)
+
+   Optional on any section:  nav: false  -> hide it from the sidebar
+   ===================================================================== */
+
+const SITE = {
+  title:   "L0hengrin's Library",      // shown as the flickering neon sign
+  tagline: "my little corner of the internet • created Oct 6, 2026",
+  nowPlaying: "Last song: <a href='#'>Something nice</a>",   // plain text/HTML, edit by hand
+  footer:  "(c) 2026 L0hengrin. All rights reserved.",
+};
+
+const SECTIONS = [
+  {
+    id: "home", title: "Welcome", type: "text",
+    body: `
+      <p>This is my little website and blog. Inspired by all those neocities sites.</p>
+      <p>Some quick facts:</p>
+      <ul>
+        <li>I like <b>coding</b> and staring at the moon.</li>
+        <li>My favorite language is JavaScript.</li>
+        <li>I spend way too much time on my computer.</li>
+      </ul>`
+  },
+  {
+    id: "blog", title: "Blog", type: "posts",
+    // newest first. Dates are just text, write whatever format you like.
+    items: [
+      { title: "My second post",  url: "#", date: "Oct 6, 2026" },
+      { title: "Hello World!",    url: "#", date: "Oct 1, 2026" },
+    ]
+  },
+  {
+    id: "projects", title: "Projects", type: "cards",
+    items: [
+      { title: "☾ Cool Project", url: "https://github.com/", desc: "What it does in one sentence." },
+      { title: "☾ Other Thing",  url: "https://github.com/", desc: "Another sentence about it." },
+    ]
+  },
+  {
+    id: "status", title: "Systems status", type: "status",
+    items: [ { name: "mysite.com", ok: true }, { name: "mailserver", ok: true }, { name: "game server", ok: false } ]
+  },
+  {
+    id: "links", title: "Cool sites", type: "buttons",
+    // no img => colored text button. Add img: "images/buttons/foo.gif" for real ones.
+    items: [
+      { label: "neocities", url: "https://neocities.org", color: "#c0392b" },
+      { label: "nekoweb",   url: "https://nekoweb.org",   color: "#2e86c1" },
+      { label: "made with notepad", url: "#", color: "#555" },
+    ]
+  },
+  {
+    id: "findme", title: "Find me", type: "text", nav: false,
+    body: `<a href="https://github.com/">GitHub</a> ✩ <a href="mailto:you@example.com">E-mail</a>`
+  },
+];
+
+/* NOTE: sidebar links that are NOT sections (external sites). Edit freely. */
+const EXTRA_NAV = [
+  { id: "gallery", label: "Gallery", url: "#gallery" },   // <- scrolls down to the photos (add them in section 9)
+  { label: "GitHub",  url: "https://github.com/" },
+  { label: "Discord", url: "#" },
+];
+
+/* =====================================================================
+   5. RENDERERS  -  one small function per section "type".
+   To invent a NEW type (e.g. "gallery"): add a function here, then use
+   type: "gallery" in SECTIONS. Each returns an HTML string.
+   ===================================================================== */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+const RENDER = {
+  text:    s => s.body,
+  html:    s => s.body,
+  posts:   s => s.items.map(p =>
+             `<div class="post"><a href="${esc(p.url)}">${esc(p.title)}</a><small>${esc(p.date)}</small></div>`).join(""),
+  cards:   s => s.items.map(p =>
+             `<div class="card"><h3><a href="${esc(p.url)}">${esc(p.title)}</a></h3>${esc(p.desc)}</div>`).join(""),
+  buttons: s => `<div class="buttons">` + s.items.map(b => b.img
+             ? `<a class="btn88" href="${esc(b.url)}"><img src="${esc(b.img)}" alt="${esc(b.label)}" loading="lazy"></a>`
+             : `<a class="btn88" style="background:${esc(b.color || "#444")}" href="${esc(b.url)}">${esc(b.label)}</a>`
+           ).join("") + `</div>`,
+  status:  s => `<div style="font-family:var(--mono)">` + s.items.map(i =>
+             `<div>[ <span style="color:${i.ok ? "#7dffa0" : "#ff7d7d"}">${i.ok ? " OK " : "DOWN"}</span> ] ${esc(i.name)}</div>`).join("") + `</div>`,
+};
+
+/* Build the page once. Using one innerHTML write = fast, no reflow per section. */
+(function build() {
+  // Neon sign: each letter gets its own <span> so single letters can flicker.
+  // NOTE: FLICKER_LETTERS = which letter positions flicker (0 = first letter). Make it [] for none.
+  const FLICKER_LETTERS = [1, 11];
+  document.getElementById("site-title").innerHTML = [...SITE.title].map((c, i) =>
+    `<span${FLICKER_LETTERS.includes(i) ? ' class="fl"' : ""}>${esc(c)}</span>`).join("");
+  document.getElementById("site-tagline").textContent = SITE.tagline;
+  document.getElementById("now-playing").innerHTML    = SITE.nowPlaying;
+  document.getElementById("footer").textContent       = SITE.footer;
+  document.title = SITE.title;
+
+  const ACTIVE = SECTIONS.filter(s => !DISABLED.includes(s.id));   // sections that are switched on
+  document.getElementById("main").innerHTML = ACTIVE.map(s => {
+    const render = RENDER[s.type] || (() => `<i>unknown section type: ${esc(s.type)}</i>`);
+    return `<section class="box" id="${esc(s.id)}"><h2>${esc(s.title)}</h2>${render(s)}</section>`;
+  }).join(`<div class="divider">☾ ✦ ☾</div>`);
+
+  document.getElementById("nav").innerHTML =
+    ACTIVE.filter(s => s.nav !== false).map(s => `<a href="#${esc(s.id)}">✩ ${esc(s.title)}</a>`).join("") +
+    EXTRA_NAV.filter(n => !DISABLED.includes(n.id)).map(n => `<a href="${esc(n.url)}">✩ ${esc(n.label)}</a>`).join("");
+})();
+
+/* =====================================================================
+   6. SETTINGS (saved per visitor in localStorage; try/catch so it never breaks)
+   To add a new toggle: add a <input data-pref="myThing"> in the HTML above,
+   then read prefs.myThing wherever you need it.
+   ===================================================================== */
+const prefs = (() => { try { return JSON.parse(localStorage.getItem("prefs")) || {}; } catch { return {}; } })();
+const savePrefs = () => { try { localStorage.setItem("prefs", JSON.stringify(prefs)); } catch {} };
+
+document.querySelectorAll("[data-pref]").forEach(box => {
+  box.checked = !!prefs[box.dataset.pref];
+  box.addEventListener("change", () => { prefs[box.dataset.pref] = box.checked; savePrefs(); applyPrefs(); });
+});
+function applyPrefs() {
+  rain.setEnabled(!prefs.rainOff);
+  rain.setCount(prefs.rainHeavy ? 400 : 120);   // NOTE: raindrop counts (normal / heavy)
+}
+
+/* =====================================================================
+   7. RAIN  -  one canvas, one loop, zero DOM nodes per drop.
+   Efficiency notes: pauses when tab is hidden, stops completely when
+   disabled, and respects the visitor's "reduce motion" OS setting.
+   ===================================================================== */
+const rain = (() => {
+  const cv = document.getElementById("rain"), ctx = cv.getContext("2d");
+  const SPEED  = 14;                       // NOTE: fall speed
+  const SLANT  = 2;                        // NOTE: wind (positive = drifts right)
+  const COLOR  = "rgba(215,195,235,0.3)"; // NOTE: drop color
+  let drops = [], enabled = true, raf = 0, w = 0, h = 0, count = 120;
+
+  const mk = () => ({ x: Math.random() * w, y: Math.random() * h, l: 8 + Math.random() * 14, s: SPEED * (0.6 + Math.random() * 0.8) });
+  function resize() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);   // cap DPR so big screens stay cheap
+    w = innerWidth; h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.strokeStyle = COLOR; ctx.lineWidth = 1;
+  }
+  function frame() {
+    ctx.clearRect(0, 0, w, h);
+    ctx.beginPath();                                   // batch ALL drops into one stroke call
+    for (const d of drops) {
+      ctx.moveTo(d.x, d.y); ctx.lineTo(d.x + SLANT, d.y + d.l);
+      d.y += d.s; d.x += SLANT * 0.3;
+      if (d.y > h) { d.y = -d.l; d.x = Math.random() * w; }
+    }
+    ctx.stroke();
+    raf = requestAnimationFrame(frame);
+  }
+  function start() { if (!raf && enabled && !document.hidden && !matchMedia("(prefers-reduced-motion: reduce)").matches) raf = requestAnimationFrame(frame); }
+  function stop()  { cancelAnimationFrame(raf); raf = 0; ctx.clearRect(0, 0, w, h); }
+
+  addEventListener("resize", resize);
+  document.addEventListener("visibilitychange", () => document.hidden ? stop() : start());
+  resize();
+  return {
+    setEnabled(v) { enabled = v; v ? start() : stop(); },
+    setCount(n)   { count = n; while (drops.length < n) drops.push(mk()); drops.length = n; },
+  };
+})();
+
+/* =====================================================================
+   9. GALLERY  -  ADD YOUR PHOTOS HERE
+   =====================================================================
+   1) Make a folder called  photos  next to this index.html and drop your images in.
+   2) Add one line per photo to PHOTOS below. Either form works:
+        "photos/cat.jpg",                                   <- just the file
+        { src: "photos/sunset.jpg", caption: "Prague, May" },  <- file + caption
+   Newest at the top if you want them first. Delete the sample (src-less) entries
+   once you add real ones. Tip: resize big photos to ~1600px wide so the page loads fast;
+   images are lazy-loaded, so only the ones on screen are downloaded.
+   ===================================================================== */
+const GALLERY_INTRO = "Click a photo to view it bigger.";
+const PHOTOS = [
+  { caption: "sample tile - replace me" },        // no src = colored placeholder
+  { caption: "another sample" },
+  { caption: "and another" },
+  // "photos/example.jpg",
+  // { src: "photos/example2.jpg", caption: "My caption" },
+];
+
+(function gallery() {
+  const root = document.getElementById("gallery");
+  if (DISABLED.includes("gallery")) { root.remove(); document.getElementById("gallery-divider").remove(); return; }
+  const items = PHOTOS.map(p => typeof p === "string" ? { src: p } : p);
+  const real = items.filter(p => p.src);                 // only real photos open in the viewer
+  let r = 0;
+  root.innerHTML = `<section class="box"><h2>Gallery</h2><p class="muted">${GALLERY_INTRO}</p><div class="gallery">` +
+    items.map((p, i) => p.src
+      ? `<figure data-r="${r++}"><img src="${esc(p.src)}" alt="${esc(p.caption || "")}" loading="lazy" decoding="async">` +
+        (p.caption ? `<figcaption>${esc(p.caption)}</figcaption>` : "") + `</figure>`
+      : `<figure class="ph" style="--hue:${(i * 67) % 360}"><div style="height:${110 + (i * 41) % 110}px"></div>` +
+        `<figcaption>${esc(p.caption || "add a photo")}</figcaption></figure>`).join("") +
+    `</div></section>`;
+
+  const lb = document.getElementById("lb"), img = document.getElementById("lb-img"), cap = document.getElementById("lb-cap");
+  let cur = 0;
+  const show = n => { cur = (n + real.length) % real.length; img.src = real[cur].src; cap.textContent = real[cur].caption || ""; };
+  const close = () => { lb.hidden = true; img.src = ""; };
+  root.addEventListener("click", e => {                  // one listener for all photos
+    const f = e.target.closest("figure[data-r]");
+    if (f) { show(+f.dataset.r); lb.hidden = false; }
+  });
+  document.getElementById("lb-prev").onclick = () => show(cur - 1);
+  document.getElementById("lb-next").onclick = () => show(cur + 1);
+  document.getElementById("lb-x").onclick = close;
+  lb.addEventListener("click", e => { if (e.target === lb) close(); });
+  addEventListener("keydown", e => {
+    if (lb.hidden) return;
+    if (e.key === "Escape") close();
+    else if (e.key === "ArrowLeft") show(cur - 1);
+    else if (e.key === "ArrowRight") show(cur + 1);
+  });
+})();
+
+/* =====================================================================
+   10. ADDING MORE "PAGES"
+   There's no router anymore: everything is one long scrolling page.
+   To add a page-like block, just add another section in SECTIONS (section 4)
+   - it gets its own box + sidebar link automatically. The gallery is the same idea,
+   it just lives in its own <main id="gallery"> because it's built by section 9's code.
+   ===================================================================== */
+
+/* =====================================================================
+   11. SKYLINE  -  buildings drawn once as SVG (no images to load)
+   Each layer is a row of random buildings, back-to-front (far/dim first, near/dark last).
+     seed       - change the number to get a different city
+     fill       - building color      win - window color      winAlpha - window brightness
+     minH/maxH  - building height range    minW/maxW - width range
+     lit        - chance (0-1) that a window is lit
+     shift      - parallax: pixels this layer slides up over the whole page scroll
+   ===================================================================== */
+const SKYLINE = {
+  seed: 7,
+  layers: [
+    { fill: "#241a2b", win: "#ffd98a", winAlpha: .15, lit: .18, minH: 170, maxH: 360, minW: 50, maxW: 100, shift: 8  },  // very far (tall, faint)
+    { fill: "#1b1322", win: "#ffd98a", winAlpha: .35, lit: .22, minH: 110, maxH: 290, minW: 40, maxW: 90,  shift: 18 },  // far
+    { fill: "#100b16", win: "#ffd98a", winAlpha: .75, lit: .30, minH: 90,  maxH: 240, minW: 50, maxW: 110, shift: 35 },  // near
+  ],
+};
+(function skyline() {
+  let s = SKYLINE.seed;
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;   // tiny seeded random
+  const W = 1600, H = 420, EX = 80;                                  // EX = extra body below the baseline
+  const host = document.getElementById("skyline");
+  for (const L of SKYLINE.layers) {
+    let x = -rnd() * 40, body = "", wins = "";
+    while (x < W) {
+      const w = L.minW + rnd() * (L.maxW - L.minW), h = L.minH + rnd() * (L.maxH - L.minH), y = H - h;
+      body += `M${x | 0} ${H + EX}V${y | 0}H${(x + w) | 0}V${H + EX}z`;
+      if (rnd() < .25) body += `M${(x + w / 2) | 0} ${(y - 18) | 0}h2v18h-2z`;              // antenna
+      for (let wy = y + 10; wy < H - 8; wy += 14)
+        for (let wx = x + 7; wx < x + w - 9; wx += 12)
+          if (rnd() < L.lit) wins += `M${wx | 0} ${wy | 0}h5v7h-5z`;
+      x += w + rnd() * 8;
+    }
+    const d = document.createElement("div");
+    d.className = "sky-layer";
+    d.style.setProperty("--shift", `-${L.shift}px`);
+    // one <path> for all buildings + one for all windows = very cheap to draw
+    d.innerHTML = `<svg viewBox="0 0 ${W} ${H + EX}" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">` +
+      `<path d="${body}" fill="${L.fill}"/><path d="${wins}" fill="${L.win}" opacity="${L.winAlpha}"/></svg>`;
+    host.appendChild(d);
+  }
+})();
+
+/* =====================================================================
+   12. SCROLL PARALLAX
+   Only writes ONE css variable (--p) once per frame; the CSS does the moving
+   (GPU transforms, no layout work). Turned off for "reduce motion" visitors.
+   ===================================================================== */
+(function parallax() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const root = document.documentElement;
+  let queued = false;
+  const update = () => {
+    queued = false;
+    const max = root.scrollHeight - innerHeight;
+    root.style.setProperty("--p", max > 0 ? Math.min(scrollY / max, 1).toFixed(4) : "0");
+  };
+  addEventListener("scroll", () => { if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
+  addEventListener("resize", update);
+  update();
+})();
+
+/* =====================================================================
+   13. STARS
+   Most stars are painted ONCE on a canvas (free after that). A few extra ones are
+   tiny elements that twinkle with a CSS opacity animation (cheap, runs on the GPU).
+     COUNT   - painted stars          TWINKLE - twinkling stars
+     BIAS    - >1 puts more stars near the top of the screen (1 = even)
+   ===================================================================== */
+const STARS = { seed: 42, COUNT: 260, TWINKLE: 30, BIAS: 1.5 };
+(function stars() {
+  let s = STARS.seed;
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  // generate positions once as fractions (0-1) so a resize just redraws them
+  const pts = Array.from({ length: STARS.COUNT }, () => ({
+    x: rnd(), y: Math.pow(rnd(), STARS.BIAS), r: .4 + rnd() * 1.1, a: .25 + rnd() * .65, warm: rnd() < .25 }));
+  const cv = document.getElementById("stars"), ctx = cv.getContext("2d");
+  function draw() {
+    const dpr = Math.min(devicePixelRatio || 1, 2), w = innerWidth, h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (const p of pts) {
+      ctx.globalAlpha = p.a; ctx.fillStyle = p.warm ? "#ffe6b0" : "#fff";
+      ctx.beginPath(); ctx.arc(p.x * w, p.y * h, p.r, 0, 6.2832); ctx.fill();
+    }
+  }
+  draw(); addEventListener("resize", draw);
+  const frag = document.createDocumentFragment();       // one insert for all twinklers
+  for (let i = 0; i < STARS.TWINKLE; i++) {
+    const t = document.createElement("i");
+    t.className = "tw";
+    t.style.cssText = `left:${(rnd() * 100).toFixed(1)}%;top:${(Math.pow(rnd(), STARS.BIAS) * 100).toFixed(1)}%;` +
+      `--d:${(2 + rnd() * 4).toFixed(1)}s;--dl:-${(rnd() * 6).toFixed(1)}s`;
+    frag.appendChild(t);
+  }
+  document.getElementById("sky").appendChild(frag);
+})();
+
+applyPrefs();
+</script>
+</body>
+</html>
