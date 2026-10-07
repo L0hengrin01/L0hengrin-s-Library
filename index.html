@@ -191,8 +191,6 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 
 .gallery img { width: 100%; display: block; }
 .gallery figcaption { font-size: 12px; color: var(--muted); padding: 3px 2px 0; }
 .gallery figure:hover { border-color: var(--accent); }
-.gallery .ph { cursor: default; }
-.gallery .ph div { background: linear-gradient(135deg, hsl(var(--hue) 40% 25%), hsl(calc(var(--hue) + 60) 40% 15%)); }
 
 /* PHOTO VIEWER */
 #lb { position: fixed; inset: 0; z-index: 10; background: rgba(4,6,16,.93);
@@ -259,6 +257,13 @@ code { border-radius: 4px; }
 #settings-btn { display: flex; justify-content: space-between; align-items: center; }
 .chev { display: inline-block; transition: transform .35s ease; }
 #settings-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.section-heading h2 { margin-top: .2em; }
+.more-row { flex: none; }
+.more-btn { padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px;
+            background: var(--panel-2); color: var(--accent); font: inherit; cursor: pointer; }
+.more-btn:hover, .more-btn:focus-visible { border-color: var(--accent); }
+.more-content { white-space: pre-wrap; overflow-wrap: anywhere; }
 .drop { display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden;
         transition: grid-template-rows .35s ease, opacity .25s ease, visibility 0s linear .35s; }
 .drop.open { grid-template-rows: 1fr; opacity: 1; visibility: visible;
@@ -439,6 +444,14 @@ body[data-scene="library"] #sky, body[data-scene="library"] #rain, body[data-sce
   </div>
 </div>
 
+<div id="more-modal" class="modal" hidden>
+  <div class="modal-box box" role="dialog" aria-modal="true" aria-labelledby="more-title">
+    <button class="modal-x" id="more-close" type="button" aria-label="Close">✕</button>
+    <h2 id="more-title"></h2>
+    <div id="more-content" class="more-content"></div>
+  </div>
+</div>
+
 <!-- Photo viewer (click a photo in the gallery). Arrow keys + Esc work. -->
 <div id="lb" hidden>
   <button id="lb-prev" aria-label="Previous">‹</button>
@@ -456,10 +469,7 @@ body[data-scene="library"] #sky, body[data-scene="library"] #rain, body[data-sce
    Current ids:  "home"  "blog"  "projects"  "status"  "links"  "findme"  "gallery"
    (any section you add in SECTIONS below works too - use its id)
    ===================================================================== */
-const DISABLED = [ "status", "blog", "findme", "gallery"
-  // "status",
-  // "gallery",
-];
+const DISABLED = ["status", "blog", "findme"];
 
 /* =====================================================================
    4. YOUR CONTENT  -  THIS IS THE PART YOU EDIT 99% OF THE TIME
@@ -540,13 +550,15 @@ const SITE = {
 const SECTIONS = [
   {
     id: "home", title: "Welcome", type: "text",
+    // Edit this text here in the source; visitors can only read it.
+    more: "",
     body: `
       <p>This is my little about me. I have lots to write, talk about, and show off. I don't want to bore most of you, so heres the big stuff.</p>
       <p>Some quick facts:</p>
       <ul>
         <li>I like <b>Coding</b>, <b>Photography</b> (I'm not good), <b>Music</b>, <b>Factory games</b>, <b>One on One conversations</b>, and Thinking about the Feasability of random <b>Sci-Fi Tech</b> like the <b>Oasis Visor</b>, or <b>ONI</b>,  </li>
         <li>There are a lot of things I want to do, but never get to it, either cause i can't find time, or financially, it's just dumb. For example, I want to get into <b>FPV drones</b>, <b>Sim-Racing</b>, <b>Networking</b>, <b>Robotics</b>, <b>Mocap Software/Hardware Creation</b>, <b>Self Hosting</b>, and World-Wide access to my computer.</li>
-        <li>Right now school has me staring at a screen for hours every day, and I hate it, but after I graduate in <b>May</b>, I'm going to college to get an <b>associate's degree</b> in <b>Electromechanical Engineering</b> and <b>Automated Manufacturing Systems Technology</b>. I really enjoy <b>Tinkering</b> with Electrionics and doing <b>Hands-On</b> work, so I think this would be a good fit for me. </li>
+        <li>After I graduate in <b>May</b>, I plan to go to college to get an <b>associate's degree</b> in <b>Electromechanical Engineering</b> and <b>Automated Manufacturing Systems Technology</b>. I really enjoy <b>Tinkering</b> with Electrionics and doing <b>Hands-On</b> work, so talk to me about <b>engineering</b> if you see me! </li>
       </ul>`
   },
   {
@@ -591,7 +603,7 @@ const SECTIONS = [
 // NOTE: Age is typed in by hand now. Change the number on your birthday.
 const PERSONAL = [
   { label: "Name",   value: "Jamey" },
-  { label: "Age",    value: "16" },
+  { label: "Age",    value: "Minor" },
   { label: "Gender", value: "NB/Fem (AMAB)" },
   { label: "Race",   value: "Caucasian/White" },
   { label: "Languages", value: "English, German" },
@@ -657,7 +669,10 @@ const RENDER = {
   const ACTIVE = SECTIONS.filter(s => !DISABLED.includes(s.id));   // sections that are switched on
   document.getElementById("main").innerHTML = ACTIVE.map(s => {
     const render = RENDER[s.type] || (() => `<i>unknown section type: ${esc(s.type)}</i>`);
-    return `<section class="box" id="${esc(s.id)}"><h2>${esc(s.title)}</h2>${render(s)}</section>`;
+    const more = typeof s.more === "string"
+      ? `<div class="more-row"><button class="more-btn" type="button" data-more="${esc(s.id)}" aria-haspopup="dialog">More</button></div>`
+      : "";
+    return `<section class="box" id="${esc(s.id)}"><div class="section-heading"><h2>${esc(s.title)}</h2>${more}</div>${render(s)}</section>`;
   }).join(`<div class="divider">☾ ✦ ☾</div>`);
 
   document.getElementById("nav").innerHTML =
@@ -665,6 +680,37 @@ const RENDER = {
     EXTRA_NAV.filter(n => !DISABLED.includes(n.id)).map(n => n.copy
       ? `<a href="#" data-copy="${esc(n.copy)}" data-label="${esc(n.label)}" title="Click to copy my username">✩ ${esc(n.label)}</a>`
       : `<a href="${esc(n.url)}"${n.blank ? ' target="_blank" rel="noopener"' : ""}>✩ ${esc(n.label)}</a>`).join("");
+})();
+
+(function moreInfo() {
+  const modal = document.getElementById("more-modal");
+  const title = document.getElementById("more-title");
+  const content = document.getElementById("more-content");
+  const closeButton = document.getElementById("more-close");
+  let trigger = null;
+
+  const close = () => {
+    modal.hidden = true;
+    trigger?.focus();
+  };
+
+  document.getElementById("main").addEventListener("click", e => {
+    const button = e.target.closest("[data-more]");
+    if (!button) return;
+
+    const section = SECTIONS.find(s => s.id === button.dataset.more);
+    if (!section || typeof section.more !== "string") return;
+
+    trigger = button;
+    title.textContent = `${section.title} — more`;
+    content.textContent = section.more || "No additional information yet.";
+    modal.hidden = false;
+    closeButton.focus();
+  });
+
+  closeButton.addEventListener("click", close);
+  modal.addEventListener("click", e => { if (e.target === modal) close(); });
+  addEventListener("keydown", e => { if (e.key === "Escape" && !modal.hidden) close(); });
 })();
 
 (function personalInfo() {
@@ -820,39 +866,14 @@ const rain = (() => {
   };
 })();
 
-/* =====================================================================
-   9. GALLERY  -  ADD YOUR PHOTOS HERE
-   =====================================================================
-   1) Make a folder called  photos  next to this index.html and drop your images in.
-   2) Add one line per photo to PHOTOS below. Either form works:
-        "photos/cat.jpg",                                   <- just the file
-        { src: "photos/sunset.jpg", caption: "Prague, May" },  <- file + caption
-   Newest at the top if you want them first. Delete the sample (src-less) entries
-   once you add real ones. Tip: resize big photos to ~1600px wide so the page loads fast;
-   images are lazy-loaded, so only the ones on screen are downloaded.
-   ===================================================================== */
-const GALLERY_INTRO = "WIP Feature";
-
-/* AUTO GALLERY: drop an image into the folder below in your GitHub repo and it shows up here by itself.
-   The caption under each photo is the file name (extension dropped, - and _ turned into spaces):  "my_cat-nap.jpg" -> "my cat nap".
-   It asks GitHub which files are in the folder, so it works once the site is on GitHub Pages (a new file can take a
-   couple of minutes to appear: Pages has to rebuild, and the list is cached for 2 minutes).
-     owner / repo - leave "" to auto-detect from an  OWNER.github.io/REPO  address. Fill them in if you use a custom domain.
-     folder       - the folder (next to index.html) that holds the images.     branch - "" = the repo's default branch. */
+/* GALLERY: image files in the same GitHub repository directory as index.html appear automatically.
+   Discovery uses GitHub's public API, so this requires GitHub Pages (or owner/repo configured below);
+   browsers cannot list files in a local directory when index.html is opened directly. */
 const GALLERY_SOURCE = {
   owner: "", repo: "",
-  folder: "photos", branch: "",
+  branch: "",
   types: /\.(png|jpe?g|gif|webp|avif|svg)$/i,          // file types that count as photos
 };
-// Fallback list: only used when the auto-loader can't reach GitHub (e.g. opening the file on your computer).
-const PHOTOS = [
-  { caption: "sample tile - replace me" },        // no src = colored placeholder
-  { caption: "another sample" },
-  { caption: "and another" },
-  // { src: "photos/example2.jpg", caption: "My caption" },
-];
-
-const prettyTitle = name => name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
 
 async function listGalleryFiles() {
   let { owner, repo } = GALLERY_SOURCE;
@@ -860,8 +881,8 @@ async function listGalleryFiles() {
     const m = location.hostname.match(/^([^.]+)\.github\.io$/i);
     if (m) { owner = m[1]; const seg = location.pathname.split("/")[1] || ""; repo = seg && !seg.includes(".") ? seg : `${owner}.github.io`; }
   }
-  if (!owner || !repo) return null;
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${GALLERY_SOURCE.folder}` + (GALLERY_SOURCE.branch ? `?ref=${GALLERY_SOURCE.branch}` : "");
+  if (!owner || !repo) throw new Error("Gallery discovery requires GitHub Pages or an owner and repo set in GALLERY_SOURCE.");
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents` + (GALLERY_SOURCE.branch ? `?ref=${GALLERY_SOURCE.branch}` : "");
   const key = "gallery:" + url;
   try { const c = JSON.parse(localStorage.getItem(key)); if (c && Date.now() - c.t < 120000) return c.list; } catch {}
   const res = await fetch(url, { headers: { Accept: "application/vnd.github+json" } });
@@ -874,49 +895,51 @@ async function listGalleryFiles() {
 
 (async function gallery() {
   const root = document.getElementById("gallery");
-  if (DISABLED.includes("gallery")) { root.remove(); document.getElementById("gallery-divider").remove(); return; }
   root.innerHTML = `<section class="box"><h2>Gallery</h2><p class="muted">Loading photos…</p></section>`;
-  let items = PHOTOS.map(p => typeof p === "string" ? { src: p } : p);
   try {
     const files = await listGalleryFiles();
-    if (files && files.length) items = files.map(n => ({ src: `${GALLERY_SOURCE.folder}/${encodeURIComponent(n)}`, caption: prettyTitle(n) }));
-  } catch (e) { /* keep the fallback list */ }
-  const real = items.filter(p => p.src);                 // only real photos open in the viewer
-  let r = 0;
-  root.innerHTML = `<section class="box"><h2>Gallery</h2><p class="muted">${GALLERY_INTRO}</p><div class="gallery">` +
-    items.map((p, i) => p.src
-      ? `<figure data-r="${r++}"><img src="${esc(p.src)}" alt="${esc(p.caption || "")}" loading="lazy" decoding="async">` +
-        (p.caption ? `<figcaption>${esc(p.caption)}</figcaption>` : "") + `</figure>`
-      : `<figure class="ph" style="--hue:${(i * 67) % 360}"><div style="height:${110 + (i * 41) % 110}px"></div>` +
-        `<figcaption>${esc(p.caption || "add a photo")}</figcaption></figure>`).join("") +
-    `</div></section>`;
-  // a photo that fails to load (e.g. Pages hasn't finished publishing it yet) just disappears instead of showing a broken icon
-  root.addEventListener("error", e => {
-    const f = e.target.tagName === "IMG" && e.target.closest("figure[data-r]");
-    if (f) { real[+f.dataset.r].bad = true; f.remove(); }
-  }, true);
+    if (!files.length) {
+      root.innerHTML = `<section class="box"><h2>Gallery</h2><p class="muted">No image files found beside index.html yet.</p></section>`;
+      return;
+    }
+    const real = files.map(src => ({ src, caption: src.replace(/\.[^.]+$/, "") }));
+    root.innerHTML = `<section class="box"><h2>Gallery</h2><div class="gallery">` +
+      real.map((p, i) =>
+        `<figure data-r="${i}"><img src="${encodeURIComponent(p.src)}" alt="${esc(p.caption)}" loading="lazy" decoding="async">` +
+        `<figcaption>${esc(p.caption)}</figcaption></figure>`).join("") +
+      `</div></section>`;
+    // A photo that fails to load (e.g. Pages has not finished publishing it yet) is omitted.
+    root.addEventListener("error", e => {
+      const f = e.target.tagName === "IMG" && e.target.closest("figure[data-r]");
+      if (f) { real[+f.dataset.r].bad = true; f.remove(); }
+    }, true);
 
-  const lb = document.getElementById("lb"), img = document.getElementById("lb-img"), cap = document.getElementById("lb-cap");
-  let cur = 0;
-  const show = (n, dir = 1) => {
-    for (let i = 0; i < real.length; i++) { cur = (n + real.length) % real.length; if (!real[cur].bad) break; n += dir; }   // skip broken ones
-    img.src = real[cur].src; cap.textContent = real[cur].caption || "";
-  };
-  const close = () => { lb.hidden = true; img.src = ""; };
-  root.addEventListener("click", e => {                  // one listener for all photos
-    const f = e.target.closest("figure[data-r]");
-    if (f) { show(+f.dataset.r); lb.hidden = false; }
-  });
-  document.getElementById("lb-prev").onclick = () => show(cur - 1, -1);
-  document.getElementById("lb-next").onclick = () => show(cur + 1);
-  document.getElementById("lb-x").onclick = close;
-  lb.addEventListener("click", e => { if (e.target === lb) close(); });
-  addEventListener("keydown", e => {
-    if (lb.hidden) return;
-    if (e.key === "Escape") close();
-    else if (e.key === "ArrowLeft") show(cur - 1, -1);
-    else if (e.key === "ArrowRight") show(cur + 1);
-  });
+    const lb = document.getElementById("lb"), img = document.getElementById("lb-img"), cap = document.getElementById("lb-cap");
+    let cur = 0;
+    const show = (n, dir = 1) => {
+      for (let i = 0; i < real.length; i++) { cur = (n + real.length) % real.length; if (!real[cur].bad) break; n += dir; }
+      img.src = real[cur].src; cap.textContent = real[cur].caption;
+    };
+    const close = () => { lb.hidden = true; img.src = ""; };
+    root.addEventListener("click", e => {
+      const f = e.target.closest("figure[data-r]");
+      if (f) { show(+f.dataset.r); lb.hidden = false; }
+    });
+    document.getElementById("lb-prev").onclick = () => show(cur - 1, -1);
+    document.getElementById("lb-next").onclick = () => show(cur + 1);
+    document.getElementById("lb-x").onclick = close;
+    lb.addEventListener("click", e => { if (e.target === lb) close(); });
+    addEventListener("keydown", e => {
+      if (lb.hidden) return;
+      if (e.key === "Escape") close();
+      else if (e.key === "ArrowLeft") show(cur - 1, -1);
+      else if (e.key === "ArrowRight") show(cur + 1);
+    });
+  } catch (error) {
+    console.error("Unable to load the photo gallery.", error);
+    const message = error instanceof Error ? error.message : String(error);
+    root.innerHTML = `<section class="box"><h2>Gallery</h2><p class="muted">${esc(message)}</p></section>`;
+  }
 })();
 
 /* =====================================================================
