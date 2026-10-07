@@ -461,15 +461,20 @@ body[data-scene="library"] #sky, body[data-scene="library"] #rain, body[data-sce
 </div>
 
 <script>
-/* =====================================================================
-   TURN SECTIONS OFF  -  list the ids of sections you want hidden.
-   A hidden section disappears from the page AND from the Stars sidebar.
-   Delete an id (or the whole list) to bring it back. Nothing is deleted from your content.
-
-   Current ids:  "home"  "blog"  "projects"  "status"  "links"  "findme"  "gallery"
-   (any section you add in SECTIONS below works too - use its id)
-   ===================================================================== */
-const DISABLED = ["status", "blog", "findme"];
+/* DISPLAY SETTINGS: use "S" to show or "H" to hide each page element.
+   New sections are shown by default; add their id here to control them.
+   Set galleryFilenames to "H" to hide image names below photos and in the photo viewer. */
+const DISPLAY = {
+  home: "S",
+  blog: "H",
+  projects: "S",
+  status: "H",
+  links: "S",
+  findme: "H",
+  gallery: "S",
+  galleryFilenames: "H",
+};
+const isShown = id => DISPLAY[id] !== "H";
 
 /* =====================================================================
    4. YOUR CONTENT  -  THIS IS THE PART YOU EDIT 99% OF THE TIME
@@ -484,7 +489,7 @@ const DISABLED = ["status", "blog", "findme"];
      type  - how it's displayed. One of:
 
        "text"     -> body: "html string"          (paragraphs, links, <b>, <ul>, anything)
-       "posts"    -> items: [{title, url, date}]  (blog list)
+       "posts"    -> items: [{title, date, content}]  (click a title to read its content)
        "cards"    -> items: [{title, url, desc, status?, steps?}]  (projects; status = text, steps = list of next steps)
        "buttons"  -> items: [{label, url, img?, color?}]
                       (img = path to an 88x31 gif/png; without img you get a colored text button)
@@ -565,8 +570,8 @@ const SECTIONS = [
     id: "blog", title: "Blog", type: "posts",
     // newest first. Dates are just text, write whatever format you like.
     items: [
-      { title: "My second post",  url: "#", date: "Oct 6, 2026" },
-      { title: "Hello World!",    url: "#", date: "Oct 1, 2026" },
+      { title: "My second post", date: "Oct 6, 2026", content: "Cheese" },
+      { title: "Hello World!", date: "Oct 1, 2026", content: "Info hersde" },
     ]
   },
   {
@@ -574,7 +579,7 @@ const SECTIONS = [
     items: [
       { title: "☾ Fixing my PC's Wi-Fi", url: "#", desc: "Diagnosing the high ping and low speeds that come and go, to find out whether it's the PC, the Wi-Fi link, the router or the ISP." },
       { title: "☾ Homelab", url: "#", desc: "Building a home server for storage, photos and media.",
-        status: "Waiting on GPU",
+        status: "Finding Time...",
         steps: ["Install TrueNAS Scale", "Set up wireless access", "Set up basic services: Immich, Tailscale and Plex"] },
     ]
   },
@@ -631,8 +636,8 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">
 const RENDER = {
   text:    s => s.body,
   html:    s => s.body,
-  posts:   s => s.items.map(p =>
-             `<div class="post"><a href="${esc(p.url)}">${esc(p.title)}</a><small>${esc(p.date)}</small></div>`).join(""),
+  posts:   s => s.items.map((p, i) =>
+             `<div class="post"><a href="#" data-post="${i}">${esc(p.title)}</a><small>${esc(p.date)}</small></div>`).join(""),
   cards:   s => s.items.map(p =>
              `<div class="card"><h3><a href="${esc(p.url)}">${esc(p.title)}</a></h3>${esc(p.desc || "")}` +
              (p.status ? `<div class="st"><b>Status:</b> ${esc(p.status)}</div>` : "") +
@@ -666,7 +671,7 @@ const RENDER = {
   document.getElementById("footer").textContent       = SITE.footer;
   document.title = SITE.title;
 
-  const ACTIVE = SECTIONS.filter(s => !DISABLED.includes(s.id));   // sections that are switched on
+  const ACTIVE = SECTIONS.filter(s => isShown(s.id));   // sections that are switched on
   document.getElementById("main").innerHTML = ACTIVE.map(s => {
     const render = RENDER[s.type] || (() => `<i>unknown section type: ${esc(s.type)}</i>`);
     const more = typeof s.more === "string"
@@ -677,7 +682,7 @@ const RENDER = {
 
   document.getElementById("nav").innerHTML =
     ACTIVE.filter(s => s.nav !== false).map(s => `<a href="#${esc(s.id)}">✩ ${esc(s.title)}</a>`).join("") +
-    EXTRA_NAV.filter(n => !DISABLED.includes(n.id)).map(n => n.copy
+    EXTRA_NAV.filter(n => !n.id || isShown(n.id)).map(n => n.copy
       ? `<a href="#" data-copy="${esc(n.copy)}" data-label="${esc(n.label)}" title="Click to copy my username">✩ ${esc(n.label)}</a>`
       : `<a href="${esc(n.url)}"${n.blank ? ' target="_blank" rel="noopener"' : ""}>✩ ${esc(n.label)}</a>`).join("");
 })();
@@ -695,15 +700,23 @@ const RENDER = {
   };
 
   document.getElementById("main").addEventListener("click", e => {
-    const button = e.target.closest("[data-more]");
-    if (!button) return;
+    const target = e.target.closest("[data-more], [data-post]");
+    if (!target) return;
 
-    const section = SECTIONS.find(s => s.id === button.dataset.more);
-    if (!section || typeof section.more !== "string") return;
-
-    trigger = button;
-    title.textContent = `${section.title} — more`;
-    content.textContent = section.more || "No additional information yet.";
+    if (target.hasAttribute("data-post")) {
+      const post = SECTIONS.find(s => s.id === "blog")?.items[Number(target.dataset.post)];
+      if (!post) return;
+      e.preventDefault();
+      trigger = target;
+      title.textContent = post.title;
+      content.textContent = post.content || "No additional information yet.";
+    } else {
+      const section = SECTIONS.find(s => s.id === target.dataset.more);
+      if (!section || typeof section.more !== "string") return;
+      trigger = target;
+      title.textContent = `${section.title} — more`;
+      content.textContent = section.more || "No additional information yet.";
+    }
     modal.hidden = false;
     closeButton.focus();
   });
@@ -833,9 +846,9 @@ const rain = (() => {
   const SPEED  = 14;                       // NOTE: fall speed
   const SLANT  = 2;                        // NOTE: wind (positive = drifts right)
   const COLOR  = "rgba(215,195,235,0.3)"; // NOTE: drop color
-  let drops = [], enabled = true, raf = 0, w = 0, h = 0, count = 120, speedMul = 1;
+  let drops = [], enabled = true, raf = 0, w = 0, h = 0, count = 120, lastFrame = 0;
 
-  const mk = () => ({ x: Math.random() * w, y: Math.random() * h, l: 8 + Math.random() * 14, s: SPEED * (0.6 + Math.random() * 0.8) });
+  const mk = () => ({ x: Math.random() * w, y: Math.random() * h, l: 8 + Math.random() * 14 });
   function resize() {
     const dpr = Math.min(devicePixelRatio || 1, 2);   // cap DPR so big screens stay cheap
     w = innerWidth; h = innerHeight;
@@ -843,19 +856,21 @@ const rain = (() => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.strokeStyle = COLOR; ctx.lineWidth = 1;
   }
-  function frame() {
+  function frame(now) {
+    const step = lastFrame ? (now - lastFrame) / (1000 / 60) : 1;
+    lastFrame = now;
     ctx.clearRect(0, 0, w, h);
     ctx.beginPath();                                   // batch ALL drops into one stroke call
     for (const d of drops) {
       ctx.moveTo(d.x, d.y); ctx.lineTo(d.x + SLANT, d.y + d.l);
-      d.y += d.s * speedMul; d.x += SLANT * 0.3 * speedMul;
+      d.y += SPEED * step; d.x += SLANT * 0.3 * step;
       if (d.y > h) { d.y = -d.l; d.x = Math.random() * w; }
     }
     ctx.stroke();
     raf = requestAnimationFrame(frame);
   }
-  function start() { if (!raf && enabled && !document.hidden && !matchMedia("(prefers-reduced-motion: reduce)").matches) raf = requestAnimationFrame(frame); }
-  function stop()  { cancelAnimationFrame(raf); raf = 0; ctx.clearRect(0, 0, w, h); }
+  function start() { if (!raf && enabled && !document.hidden && !matchMedia("(prefers-reduced-motion: reduce)").matches) { lastFrame = 0; raf = requestAnimationFrame(frame); } }
+  function stop()  { cancelAnimationFrame(raf); raf = 0; lastFrame = 0; ctx.clearRect(0, 0, w, h); }
 
   addEventListener("resize", resize);
   document.addEventListener("visibilitychange", () => document.hidden ? stop() : start());
@@ -895,6 +910,11 @@ async function listGalleryFiles() {
 
 (async function gallery() {
   const root = document.getElementById("gallery");
+  if (!isShown("gallery")) {
+    root.remove();
+    document.getElementById("gallery-divider").remove();
+    return;
+  }
   root.innerHTML = `<section class="box"><h2>Gallery</h2><p class="muted">Loading photos…</p></section>`;
   try {
     const files = await listGalleryFiles();
@@ -906,7 +926,7 @@ async function listGalleryFiles() {
     root.innerHTML = `<section class="box"><h2>Gallery</h2><div class="gallery">` +
       real.map((p, i) =>
         `<figure data-r="${i}"><img src="${encodeURIComponent(p.src)}" alt="${esc(p.caption)}" loading="lazy" decoding="async">` +
-        `<figcaption>${esc(p.caption)}</figcaption></figure>`).join("") +
+        (isShown("galleryFilenames") ? `<figcaption>${esc(p.caption)}</figcaption>` : "") + `</figure>`).join("") +
       `</div></section>`;
     // A photo that fails to load (e.g. Pages has not finished publishing it yet) is omitted.
     root.addEventListener("error", e => {
@@ -918,7 +938,7 @@ async function listGalleryFiles() {
     let cur = 0;
     const show = (n, dir = 1) => {
       for (let i = 0; i < real.length; i++) { cur = (n + real.length) % real.length; if (!real[cur].bad) break; n += dir; }
-      img.src = real[cur].src; cap.textContent = real[cur].caption;
+      img.src = real[cur].src; cap.textContent = isShown("galleryFilenames") ? real[cur].caption : "";
     };
     const close = () => { lb.hidden = true; img.src = ""; };
     root.addEventListener("click", e => {
