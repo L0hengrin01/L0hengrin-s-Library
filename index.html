@@ -285,7 +285,9 @@ code { border-radius: 4px; }
    Current ids:  "home"  "blog"  "projects"  "status"  "links"  "findme"  "gallery"
    (any section you add in SECTIONS below works too - use its id)
    ===================================================================== */
-const DISABLED = [ "status" "gallery" "blog"
+const DISABLED = [ "status",
+                   "gallery",
+                   "blog"
   // "status",
   // "gallery",
 ];
@@ -315,8 +317,8 @@ const DISABLED = [ "status" "gallery" "blog"
 
 const SITE = {
   title:   "L0hengrin's Library",      // shown as the flickering neon sign
-  tagline: "my little corner of the internet • created Oct 6, 2026",
-  nowPlaying: "Last song: <a href='#'>Something nice</a>",   // plain text/HTML, edit by hand
+  tagline: "My personal deep dive into.. ME! • created Oct 6, 2026",
+  nowPlaying: "Last seen: <p style="color: red;">ERROR</p>",   // plain text/HTML, edit by hand
   footer:  "(c) 2026 L0hengrin. All rights reserved.",
 };
 
@@ -324,11 +326,11 @@ const SECTIONS = [
   {
     id: "home", title: "Welcome", type: "text",
     body: `
-      <p>This is my little website and blog. Inspired by all those neocities sites.</p>
+      <p>This is my little about me. I have lots to write, talk about, and show off. I don't want to bore most of you, so heres the big stuff.</p>
       <p>Some quick facts:</p>
       <ul>
-        <li>I like <b>coding</b> and staring at the moon.</li>
-        <li>My favorite language is JavaScript.</li>
+        <li>I like <b>Coding</b>, <b>Photography</b> (I'm not good), <b>Music</b>, <b>Factory games</b>, <b>One on One conversations</b>, and Thinking about the Feasability of random <b>Sci-Fi Tech</b> like the <b>Oasis Visor</b>, or <b>ONI</b>,  </li>
+        <li>There are a lot of things I want to do, but never get to it, either cause i can't find time, or financially, it's just dumb. For example, I want to get into <b>FPV drones</b>, <b>Sim-Racing</b>, <b>Networking</b>, <b>Robotics</b>, <b>Mocap Software/Hardware Creation</b>, <b>Self Hosting</b>, and World-Wide access to my computer.</li>
         <li>I spend way too much time on my computer.</li>
       </ul>`
   },
