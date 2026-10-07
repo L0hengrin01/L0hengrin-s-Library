@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- NOTE: page title + description shown in browser tab / link previews. Edit freely. -->
+<title>my little hotel</title>
+<meta name="description" content="My website and blog.">
+
+<style>
+/* =====================================================================
+   1. THEME  -  change colors/fonts here, everything else follows
+   ===================================================================== */
+:root {
+  --bg:        #110d15;   /* page background */
+  --panel:     #1c1622;   /* box background */
+  --panel-2:   #281f30;   /* hover / secondary */
+  --border:    #6e5380;   /* box borders */
+  --text:      #ece3f0;   /* normal text */
+  --muted:     #a894b4;   /* dim text */
+  --accent:    #ffe38a;   /* headings, links on hover (moon yellow) */
+  --link:      #ff9fc4;   /* link color */
+  --font:      "Trebuchet MS", Verdana, sans-serif;   /* swap for any font stack */
+  --mono:      ui-monospace, Consolas, monospace;
+  --width:     960px;     /* max page width */
+  --sidebar:   200px;     /* left nav width */
+  --radius:    14px;      /* how round the boxes are (0 = square, 24px = very round) */
+  --track-on:  #5a3a70;   /* toggle switch 'on' color */
+  --neon-text: #ffe9fb;   /* neon sign: letter color */
+  --neon-1:    #ff4fd8;   /* neon sign: inner glow */
+  --neon-2:    #d100b0;   /* neon sign: outer glow */
+  --neon-dim:  #7a4a74;   /* neon sign: dead/flicker-off color */
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; min-height: 100vh;
+  background: var(--bg); color: var(--text);
+  font: 15px/1.6 var(--font);
+  /* NOTE: to use an image background instead, e.g.:
+     background: var(--bg) url("images/bg.png"); */
+  background-image: radial-gradient(ellipse at 20% 0%, #2d1a33 0%, transparent 60%);
+  background-attachment: fixed;
+}
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--accent); text-decoration: underline wavy; }
+h1, h2, h3 { color: var(--accent); margin: .2em 0 .4em; font-weight: normal; }
+h1 { font-size: 1.9em; text-align: center; }
+h2 { font-size: 1.4em; }
+h3 { font-size: 1.1em; }
+small, .muted { color: var(--muted); }
+code { font-family: var(--mono); background: #0006; padding: 1px 5px; }
+
+/* rain canvas sits behind everything and never blocks clicks */
+#rain { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+/* =====================================================================
+   2. LAYOUT
+   ===================================================================== */
+#wrap { position: relative; z-index: 1; max-width: var(--width); margin: 0 auto; padding: 16px; }
+header { text-align: center; padding: 18px 0 10px; }
+#layout { display: grid; grid-template-columns: var(--sidebar) 1fr; gap: 16px; align-items: start; }
+
+.box {
+  /* slightly see-through so the skyline peeks through; raise 92% toward 100% for solid boxes */
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07);
+  padding: 14px 18px; margin-bottom: 16px;
+}
+.box > h2:first-child { margin-top: 0; padding-bottom: 6px; border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, var(--border), transparent) 1; }
+
+/* sidebar sticks while you scroll */
+#side { position: sticky; top: 12px; }
+#nav a { display: block; padding: 2px 4px; }
+#nav a:hover { background: var(--panel-2); border-radius: 8px; text-decoration: none; }
+
+/* phone layout: sidebar goes on top */
+@media (max-width: 720px) {
+  #layout { grid-template-columns: 1fr; }
+  #side { position: static; }
+}
+
+/* =====================================================================
+   3. SECTION TYPES  (styles for the renderers in the JS below)
+   ===================================================================== */
+.divider { text-align: center; color: var(--accent); letter-spacing: 8px; margin: 4px 0 12px; }
+.post { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; flex-wrap: wrap; }
+.card { background: var(--panel-2); border: 1px solid color-mix(in srgb, var(--border) 60%, transparent); border-radius: calc(var(--radius) - 4px); padding: 8px 12px; margin: 8px 0; }
+.card h3 { margin: 0; }
+.card .st { margin-top: 6px; font-size: 13px; color: var(--muted); }
+.card .st b { color: var(--accent); font-weight: normal; }   /* the "Status:" / "Next steps:" labels */
+.card ol { margin: 2px 0 0; padding-left: 22px; font-size: 13px; }
+.buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+/* 88x31 retro buttons. If you use real images, they'll be sized by this */
+.btn88 {
+  width: 88px; height: 31px; display: inline-flex; align-items: center; justify-content: center;
+  font: 10px var(--mono); text-align: center; line-height: 1.1; color: #fff;
+  border: 2px outset #889; image-rendering: pixelated; overflow: hidden;
+}
+.btnwrap { position: relative; display: inline-flex; }
+/* HOVER DESCRIPTION: shown from the item's desc: "..." in SECTIONS (works on keyboard focus too) */
+.btnwrap[data-desc]::after {
+  content: attr(data-desc); position: absolute; left: 0; top: calc(100% + 6px); z-index: 5;
+  width: max-content; max-width: 220px; padding: 6px 10px; font-size: 12px; line-height: 1.4;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.5); pointer-events: none;
+  opacity: 0; visibility: hidden; transform: translateY(-3px);
+  transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
+}
+.btnwrap[data-desc]:hover::after, .btnwrap[data-desc]:focus-within::after {
+  opacity: 1; visibility: visible; transform: none; transition: opacity .2s ease, transform .2s ease, visibility 0s;
+}
+@media (prefers-reduced-motion: reduce) { .btnwrap[data-desc]::after { transition: none; } }
+.btn88:hover { filter: brightness(1.3); text-decoration: none; color: #fff; }
+.btn88 img { width: 88px; height: 31px; display: block; }
+.status-ok { color: #7dffa0; font-family: var(--mono); }
+/* flickering yellow "Busy" light (used by the presence status, see SITE.presence) */
+.status-busy { color: #ffd23f; font-family: var(--mono); text-shadow: 0 0 6px #ffd23f, 0 0 14px #ffb000;
+               animation: busyflick 3s infinite; }
+@keyframes busyflick { 0%,100%,30%,34%,70%,74%,78% { opacity: 1 } 31%,72% { opacity: .25 } 32%,76% { opacity: .8 } }
+/* "Sleeping": off-white sign where one E is a dead LED that only sputters on now and then */
+.status-sleeping { color: #ece6d8; font-family: var(--mono); text-shadow: 0 0 5px rgba(236,230,216,.45); }
+.status-sleeping .dead { color: #5d574f; text-shadow: none; animation: deadled 6s infinite; }
+@keyframes deadled { 0%,100% { color: #5d574f; text-shadow: none } 41%,45% { color: #ece6d8; text-shadow: 0 0 5px rgba(236,230,216,.45) } 43% { color: #5d574f; text-shadow: none } }
+/* red ERROR text with a bloom (glow). NOTE: change the three shadow layers to make it bigger/softer or a different color */
+.err { color: #ff4a4a; font-family: var(--mono); font-weight: bold;
+       text-shadow: 0 0 3px #ff2a2a, 0 0 9px #ff2a2a, 0 0 20px #e00000, 0 0 36px rgba(224,0,0,.7); }
+/* "Lost in thought": slowly pulsing purple */
+/* NOTE: .presence-line keeps the status on ONE line; if a custom status is too long, give its class a smaller font-size like below */
+.presence-line { white-space: nowrap; }
+/* fine print next to the status (set with note: "..." on a PRESENCE entry) */
+#presence-note { font-size: .55em; font-weight: normal; color: var(--muted); margin-left: .5em; }
+.status-thinking { font-size: .8em; color: #c49bff; font-family: var(--mono); text-shadow: 0 0 6px #a45cff, 0 0 16px #7a2cff; animation: thinkpulse 5s ease-in-out infinite; }
+@keyframes thinkpulse { 0%,100% { opacity: .75 } 50% { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .status-busy, .status-thinking, .status-sleeping .dead { animation: none; } }
+.toggles label { display: block; cursor: pointer; }
+#settings-btn { margin-top: 8px; width: 100%; padding: 4px 8px; cursor: pointer; font: inherit; color: var(--text);
+                background: var(--panel-2); border: 1px solid color-mix(in srgb, var(--border) 70%, transparent); border-radius: 8px; }
+#settings-btn:hover, #settings-btn[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+#mood { float: right; }
+footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 0 24px; }
+
+/* =====================================================================
+   8. NEON SIGN + STREETLIGHTS + GALLERY STYLES
+   ===================================================================== */
+/* NEON: change the glow color by swapping #ff4fd8 / #d100b0 (e.g. cyan: #3df5ff / #0090b0) */
+.neon {
+  font-family: "Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive;  /* NOTE: sign font */
+  font-size: clamp(2.2rem, 8vw, 3.8rem); color: var(--neon-text); white-space: pre-wrap; margin: 6px 0;
+  text-shadow: 0 0 4px #fff, 0 0 10px var(--neon-1), 0 0 22px var(--neon-1), 0 0 42px var(--neon-2), 0 0 80px var(--neon-2);
+  animation: buzz 5s infinite;
+}
+.neon span.fl { animation: flick 3.4s infinite; }
+@keyframes buzz  { 0%,100% { opacity: 1 } 46% { opacity: 1 } 47% { opacity: .9 } 48% { opacity: 1 } }
+@keyframes flick {  /* mostly on, with quick stutters. Change the % to change timing */
+  0%,17%,23%,26%,54%,58%,100% { opacity: 1 }
+  18%,21%,55% { opacity: .15; color: var(--neon-dim); text-shadow: none }
+  19%,24%     { opacity: .9 }
+}
+
+/* STREETLIGHTS: --h = pole height. Move with left/right. */
+#lamps { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.lamp { --shift: -50px; position: absolute; bottom: 18px; left: 20px; width: 6px;
+        height: var(--h, clamp(120px, 20vh, 220px));   /* NOTE: pole height. Keep it below your tallest buildings */
+        transform: translateY(calc(var(--p, 0) * var(--shift)));
+        background: linear-gradient(90deg, #3d3248, #171220); transform-origin: 3px 100%; }
+.lamp::before { content: ""; position: absolute; top: 0; left: 0; width: 54px; height: 6px;
+        background: #2c2336; border-radius: 0 6px 0 0; }                       /* the arm */
+.lamp b { position: absolute; top: 6px; left: 34px; width: 24px; height: 8px; background: #fff3c4;
+        border-radius: 0 0 14px 14px;
+        box-shadow: 0 0 12px 4px var(--accent), 0 8px 30px 10px rgba(255,227,138,.35); } /* the bulb */
+.lamp u { position: absolute; top: 14px; left: -14px; width: 120px; height: calc(var(--h, clamp(120px, 20vh, 220px)) - 14px);      /* the light cone */
+        clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+        background: linear-gradient(rgba(255,227,138,.22), transparent); }
+.lamp.r { left: auto; right: 20px; transform: translateY(calc(var(--p, 0) * var(--shift))) scaleX(-1); }
+.lamp.far { --shift: -35px; bottom: 22px; left: 120px; opacity: .55; transform: translateY(calc(var(--p, 0) * var(--shift))) scale(.6); }
+.lamp.far.r { left: auto; right: 120px; transform: translateY(calc(var(--p, 0) * var(--shift))) scale(-.6, .6); }
+.lamp.flick b, .lamp.flick u { animation: lampflick 7s infinite; }
+@keyframes lampflick { 0%,100%{opacity:1} 40%{opacity:1} 41%{opacity:.3} 43%{opacity:1} 45%{opacity:.5} 47%{opacity:1} }
+@media (max-width: 1000px) { .lamp.far { display: none; } }
+@media (prefers-reduced-motion: reduce) { .neon, .neon span.fl, .lamp.flick b, .lamp.flick u { animation: none; } }
+
+/* GALLERY: columns = masonry. Change "3 200px" -> about 3 columns, each at least 200px wide */
+.gallery { columns: 3 200px; column-gap: 10px; }
+.gallery figure { margin: 0 0 10px; break-inside: avoid; background: var(--panel-2);
+                  border: 1px solid var(--border); padding: 4px; cursor: zoom-in; }
+.gallery img { width: 100%; display: block; }
+.gallery figcaption { font-size: 12px; color: var(--muted); padding: 3px 2px 0; }
+.gallery figure:hover { border-color: var(--accent); }
+.gallery .ph { cursor: default; }
+.gallery .ph div { background: linear-gradient(135deg, hsl(var(--hue) 40% 25%), hsl(calc(var(--hue) + 60) 40% 15%)); }
+
+/* PHOTO VIEWER */
+#lb { position: fixed; inset: 0; z-index: 10; background: rgba(4,6,16,.93);
+      display: flex; align-items: center; justify-content: center; gap: 8px; }
+#lb[hidden] { display: none; }
+#lb figure { margin: 0; text-align: center; max-width: 86vw; }
+#lb img { max-width: 86vw; max-height: 82vh; border: 2px ridge var(--border); }
+#lb figcaption { color: var(--text); padding-top: 6px; }
+#lb button { background: none; border: 0; color: var(--accent); font-size: 40px; cursor: pointer; padding: 8px; }
+#lb-x { position: absolute; top: 6px; right: 10px; font-size: 26px !important; }
+
+/* SKYLINE (buildings): fixed to the bottom, behind rain + lamps. height = how tall the city is */
+#skyline { position: fixed; left: 0; right: 0; bottom: 0; height: 75vh; /* NOTE: how much of the screen the city fills (0-100vh) */ z-index: 0; pointer-events: none; }
+/* PARALLAX: JS sets --p (0 at page top -> 1 at page bottom). Each layer slides up by --shift * --p.
+   Bigger --shift = closer to you = moves more. Layers hang 90px below the screen so no gap shows. */
+.sky-layer { position: absolute; left: 0; right: 0; bottom: -90px; height: calc(100% + 90px);
+             transform: translateY(calc(var(--p, 0) * var(--shift, 0px))); }
+.sky-layer svg { width: 100%; height: 100%; display: block; }
+.sky-layer.wall svg { overflow: visible; }   /* library wall keeps going past the top of its box, all the way up the screen */
+/* the street the lamps stand on (moves with the closest layer) */
+#street { --shift: -50px; position: absolute; left: 0; right: 0; bottom: -130px; height: 160px;
+          background: linear-gradient(#1c1523, #0b080f 45%); border-top: 1px solid #3b2d47;
+          transform: translateY(calc(var(--p, 0) * var(--shift))); }
+#content { min-width: 0; }
+#gallery { scroll-margin-top: 12px; }
+
+/* extra rounding for small things (they follow --radius) */
+.btn88 { border-radius: 5px; }
+.gallery figure { border-radius: calc(var(--radius) - 4px); }
+.gallery img { border-radius: calc(var(--radius) - 8px); }
+#lb img { border-radius: var(--radius); }
+code { border-radius: 4px; }
+
+/* MOON + STARS + MOONLIGHT
+   NOTE: --moon-size / --moon-x / --moon-y place the moon (x = distance from the RIGHT edge, y = from the top).
+   The glow and beam are centered on it automatically. To put it top-LEFT, see the comment on #moon. */
+:root { --moon-size: clamp(56px, 9vw, 96px); --moon-x: calc(var(--moon-size) / 2 + 34px); --moon-y: calc(var(--moon-size) / 2 + 26px);
+        --moonlight: 235, 225, 255; }   /* NOTE: moonlight color as R, G, B */
+#sky { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+       transform: translateY(calc(var(--p, 0) * -10px)); }   /* sky drifts the least (parallax) */
+#stars { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tw { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff;
+      box-shadow: 0 0 4px 1px rgba(255,255,255,.7); animation: tw var(--d) ease-in-out infinite; animation-delay: var(--dl); }
+@keyframes tw { 0%,100% { opacity: .15 } 50% { opacity: 1 } }
+#moon { position: absolute; top: calc(var(--moon-y) - var(--moon-size) / 2); right: calc(var(--moon-x) - var(--moon-size) / 2);
+        /* top-LEFT moon: replace "right:" with "left:" on the line above */
+        width: var(--moon-size); height: var(--moon-size); border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #fffdf0, #f1ead0 55%, #cfc6a6);
+        box-shadow: 0 0 30px 8px rgba(255,248,215,.5), 0 0 90px 30px rgba(255,240,200,.22), 0 0 220px 80px rgba(var(--moonlight), .12); }
+#moon::before { content: ""; position: absolute; inset: 0; border-radius: 50%;   /* craters */
+        background: radial-gradient(circle at 30% 62%, rgba(120,108,85,.28) 0 9%, transparent 10%),
+                    radial-gradient(circle at 63% 34%, rgba(120,108,85,.22) 0 12%, transparent 13%),
+                    radial-gradient(circle at 70% 72%, rgba(120,108,85,.25) 0 7%, transparent 8%); }
+#moonlight { position: fixed; inset: 0 0 -10px 0; z-index: 0; pointer-events: none;
+        transform: translateY(calc(var(--p, 0) * -10px));   /* NOTE: same drift as #sky so the beam stays glued to the moon. Keep both numbers equal. */
+        background: radial-gradient(circle at calc(100% - var(--moon-x)) var(--moon-y),
+                    rgba(var(--moonlight), .20), rgba(var(--moonlight), .07) 28%, transparent 60%); }   /* NOTE: .20 = glow strength */
+#moonlight::after { content: ""; position: absolute; inset: 0;     /* the beam, widening toward the bottom-left */
+        clip-path: polygon(calc(100% - var(--moon-x) + 40px) var(--moon-y), calc(100% - var(--moon-x) - 40px) var(--moon-y), 0 100%, 55% 100%);
+        background: linear-gradient(to bottom, rgba(var(--moonlight), .10), transparent 85%); }   /* NOTE: .10 = beam strength */
+@media (prefers-reduced-motion: reduce) { .tw { animation: none; opacity: .7; } }
+
+/* SETTINGS DROPDOWN: smooth slide using a grid-row height transition. NOTE: .35s = slide speed */
+#settings-btn { display: flex; justify-content: space-between; align-items: center; }
+.chev { display: inline-block; transition: transform .35s ease; }
+#settings-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.drop { display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden;
+        transition: grid-template-rows .35s ease, opacity .25s ease, visibility 0s linear .35s; }
+.drop.open { grid-template-rows: 1fr; opacity: 1; visibility: visible;
+        transition: grid-template-rows .35s ease, opacity .3s ease .05s, visibility 0s; }
+.drop-inner { overflow: hidden; min-height: 0; }
+.drop-body { padding: 8px 2px 0; }
+/* TOGGLE SWITCHES */
+.sw { position: relative; display: flex; align-items: center; gap: 10px; padding: 5px 0; cursor: pointer; user-select: none; }
+.sw input { position: absolute; opacity: 0; width: 0; height: 0; }
+.sw .track { position: relative; flex: none; width: 34px; height: 18px; border-radius: 999px;
+             background: #30283a; border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+             transition: background .25s, border-color .25s; }
+.sw .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%;
+             background: #b9aac6; transition: transform .25s ease, background .25s; }
+.sw input:checked + .track { background: var(--track-on); border-color: var(--accent); }
+.sw input:checked + .track::after { transform: translateX(16px); background: var(--accent); }
+.sw input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sw:hover .track { border-color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .drop, .drop.open, .chev, .sw .track, .sw .track::after { transition: none; } }
+
+/* PERSONAL INFO dropdown (reuses the .drop slide animation; the box grows/shrinks to fit the text) */
+.fold-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 0; margin: 0; cursor: pointer;
+            background: none; border: 0; font: inherit; font-size: 1.1em; color: var(--accent); text-align: left; }
+.fold-btn:hover { text-decoration: underline wavy; }
+.fold-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.fold-btn .arrow { display: inline-block; transition: transform .35s ease; }            /* ">" ... */
+.fold-btn[aria-expanded="true"] .arrow { transform: rotate(90deg); }                    /* ... turns into "v" */
+.info-row { padding: 3px 0; }
+.info-label { display: block; color: var(--accent); font-weight: normal; }              /* same color as the headers */
+.info-val { color: var(--text); overflow-wrap: anywhere; }
+/* PRIDE text: trans flag colors + a rainbow-cycling plus */
+.pride { font-weight: bold; letter-spacing: 1px; }
+.pride .pb { color: #5bcefa; }   /* light blue */
+.pride .pp { color: #f5a9b8; }   /* pink */
+.pride .pw { color: #ffffff; }   /* white */
+.pride .plus { color: #ff5f5f; animation: rainbow 4s linear infinite; }
+@keyframes rainbow { 0% { color: #ff5f5f } 17% { color: #ffa94d } 33% { color: #ffe066 } 50% { color: #69db7c } 67% { color: #4dabf7 } 83% { color: #b197fc } 100% { color: #ff5f5f } }
+@media (prefers-reduced-motion: reduce) { .pride .plus { animation: none; background: linear-gradient(90deg, #ff5f5f, #ffe066, #69db7c, #4dabf7, #b197fc); -webkit-background-clip: text; background-clip: text; color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .fold-btn .arrow { transition: none; } }
+
+/* SCHEDULE INFO button + centered window */
+.now-row { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+           margin-right: -4px; }   /* box padding is 18px right / 14px bottom; -4px makes the i button 14px from BOTH edges */
+.now-row small { line-height: 20px; }   /* same as the button height so no extra space under the row */   /* "Last seen" text + the i button on one line */
+.info-btn { flex: none; width: 20px; height: 20px; padding: 0; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center;
+            font: italic bold 12px/1 Georgia, "Times New Roman", serif; color: var(--muted);
+            background: none; border: 1px solid color-mix(in srgb, var(--muted) 70%, transparent); border-radius: 4px;
+            transition: color .2s, border-color .2s, background-color .2s; }
+.info-btn:hover, .info-btn:focus-visible { color: var(--accent); border-color: var(--accent); background: var(--panel-2); }
+.modal { position: fixed; inset: 0; z-index: 11; display: flex; align-items: center; justify-content: center; padding: 16px;
+         background: rgba(4,6,16,.8); }
+.modal[hidden] { display: none; }
+.modal-box { position: relative; width: min(440px, 100%); max-height: 85vh; overflow-y: auto; margin: 0; background: var(--panel); }
+.modal-x { position: absolute; top: 8px; right: 10px; background: none; border: 0; cursor: pointer; font-size: 20px; line-height: 1; color: var(--accent); padding: 4px; }
+.modal-x:hover { text-decoration: underline wavy; }
+.sched-row { display: grid; grid-template-columns: 9.5em 1fr; gap: 2px 12px; padding: 7px 0;
+             border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent); }
+.sched-row .t { color: var(--muted); font-family: var(--mono); font-size: 13px; }
+.sched-row .d { color: var(--muted); font-size: 13px; }
+.sched-note { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+@media (max-width: 420px) { .sched-row { grid-template-columns: 1fr; } }
+
+/* BACKGROUND PICKER */
+.seg-label { margin: 8px 0 3px; font-size: 12px; color: var(--muted); }
+.seg { display: flex; gap: 4px; }
+.seg label { flex: 1; position: relative; }
+.seg input { position: absolute; opacity: 0; width: 0; height: 0; }
+.seg span { display: block; text-align: center; padding: 3px 0; font-size: 12px; cursor: pointer; border-radius: 8px;
+           border: 1px solid color-mix(in srgb, var(--border) 70%, transparent); background: var(--panel-2); transition: background .2s, color .2s; }
+.seg input:checked + span { background: var(--accent); color: #1a1320; border-color: var(--accent); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* SCENES: JS sets <body data-scene="city|forest|library">. Per-scene colors/visibility live here. */
+body[data-scene="forest"]  { background-image: radial-gradient(ellipse at 20% 0%, #1f3d2a 0%, transparent 60%);
+  --bg: #0c1510; --panel: #13201a; --panel-2: #1c3026; --border: #4f9a6a;
+  --text: #e3f0e7; --muted: #93b8a2; --accent: #8dffa8; --link: #5fe39a; --track-on: #2f7a4a;
+  --neon-text: #e6ffec; --neon-1: #3dff7a; --neon-2: #00b04a; --neon-dim: #3f7a54; }
+body[data-scene="library"] { background-image: radial-gradient(ellipse at 80% 0%, #1d3358 0%, transparent 65%); --moonlight: 255, 190, 110;
+  --bg: #0a1020; --panel: #111a2e; --panel-2: #1a2744; --border: #4f72b0;
+  --text: #e3ebf5; --muted: #93a8c8; --accent: #8fd0ff; --link: #6fb4ff; --track-on: #2f5fa8;
+  --neon-text: #e6f4ff; --neon-1: #3db8ff; --neon-2: #0060d1; --neon-dim: #4a6a8a; }
+/* smooth color change when switching scenes */
+body, .box, .card, #settings-btn, .seg span, .gallery figure { transition: background-color .4s, border-color .4s, color .4s; }
+body[data-scene="forest"]  #street { background: linear-gradient(#17301f, #0a140e 45%); border-top-color: #2c4a36; }   /* forest floor */
+body[data-scene="library"] #street { background: linear-gradient(#3a2414, #150c06 45%); border-top-color: #5a3a22; }   /* wooden floor */
+body:not([data-scene="city"]) .lamp { display: none; }                  /* streetlights are city-only */
+body[data-scene="library"] #sky, body[data-scene="library"] #rain, body[data-scene="library"] #moonlight { display: none; }   /* indoors: no sky, no rain */
+</style>
+</head>
+
+<body>
+<!-- BACKGROUND (back to front): stars + moon -> buildings -> moonlight -> far lamps -> street -> near lamps -> rain.
+     Buildings are built by JS (section 11). Everything here drifts a little as you scroll. -->
+<!-- SKY: stars + moon (built by JS in section 13), drawn behind the buildings -->
+<div id="sky" aria-hidden="true"><canvas id="stars"></canvas><div id="moon"></div></div>
+<div id="skyline" aria-hidden="true"></div>
+<!-- MOONLIGHT: a soft glow + beam from the moon, laid OVER the buildings so they catch some light -->
+<div id="moonlight" aria-hidden="true"></div>
+
+<!-- STREETLIGHTS: pure CSS. They stand on the street strip, shorter than the tallest buildings.
+     "r" = right side, "far" = smaller/dimmer, "flick" = flickers. Copy a line to add more;
+     move one with left:/right: in the CSS (section 8). Far ones go BEFORE #street so the street hides their base. -->
+<div id="lamps" aria-hidden="true">
+  <div class="lamp far"><b></b><u></u></div>
+  <div class="lamp far r"><b></b><u></u></div>
+  <div id="street"></div>
+  <div class="lamp"><b></b><u></u></div>
+  <div class="lamp r flick"><b></b><u></u></div>
+</div>
+<canvas id="rain"></canvas>
+
+<div id="wrap">
+  <header>
+    <h1 id="site-title" class="neon"></h1>
+    <small id="site-tagline"></small>
+  </header>
+
+  <div id="layout">
+    <aside id="side">
+      <div class="box">
+        <h3>✩ Stars</h3>
+        <nav id="nav"></nav>
+        <button id="settings-btn" type="button" aria-expanded="false" aria-controls="settings"><span>⚙ Settings</span><span class="chev">▾</span></button>
+        <!-- DROPDOWN: slides open under the button. To add a toggle, copy a <label class="sw"> line and
+             give its checkbox a new data-pref name (read it as prefs.thatName in JS section 6). -->
+        <div id="settings" class="drop" inert>
+          <div class="drop-inner"><div class="drop-body">
+            <label class="sw"><input type="checkbox" data-pref="rainOff"><span class="track"></span>Disable rain</label>
+            <label class="sw"><input type="checkbox" data-pref="rainHeavy"><span class="track"></span>Heavy rain</label>
+            <label class="sw"><input type="checkbox" data-pref="randomBg"><span class="track"></span>Random background on load</label>
+            <!-- BACKGROUND PICKER: one radio per scene. value must match a scene name in section 11 (BUILD). -->
+            <div class="seg-label">Background</div>
+            <div class="seg" role="radiogroup" aria-label="Background">
+              <label><input type="radio" name="scene" value="city"><span>City</span></label>
+              <label><input type="radio" name="scene" value="forest"><span>Forest</span></label>
+              <label><input type="radio" name="scene" value="library"><span>Library</span></label>
+            </div>
+          </div></div>
+        </div>
+      </div>
+      <!-- PERSONAL INFO: click the title to slide it open. Edit the entries in PERSONAL (JS section 4). -->
+      <div class="box">
+        <button id="info-btn" class="fold-btn" type="button" aria-expanded="false" aria-controls="info"><span class="arrow">›</span><span>Personal info</span></button>
+        <div id="info" class="drop" inert>
+          <div class="drop-inner"><div class="drop-body" id="info-body"></div></div>
+        </div>
+      </div>
+      <div class="box">
+        <h3 class="presence-line">I'm <span id="presence"></span><small id="presence-note"></small></h3>
+        <div class="now-row">
+          <small id="now-playing"></small>
+          <button id="sched-btn" class="info-btn" type="button" aria-haspopup="dialog" aria-label="Schedule info" title="Schedule info">i</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- every section from CONTENT gets rendered in here -->
+    <div id="content">
+      <main id="main"></main>
+      <div class="divider" id="gallery-divider">☾ ✦ ☾</div>
+      <!-- GALLERY: just keeps scrolling down from the sections above. Filled in by JS (section 9). -->
+      <main id="gallery"></main>
+    </div>
+  </div>
+
+  <footer id="footer"></footer>
+</div>
+
+<!-- SCHEDULE WINDOW: opened by the "Schedule info" button under the status. Rows are built from SCHEDULE_INFO (JS section 4). -->
+<div id="sched" class="modal" hidden>
+  <div class="modal-box box" role="dialog" aria-modal="true" aria-labelledby="sched-title">
+    <button class="modal-x" id="sched-x" type="button" aria-label="Close">✕</button>
+    <h2 id="sched-title">My schedule</h2>
+    <small>Central time. The status in the sidebar follows this automatically.</small>
+    <div id="sched-body"></div>
+    <p class="sched-note">* "Lost in thought" doesn't guarantee I'm not doing schoolwork or something.</p>
+  </div>
+</div>
+
+<!-- Photo viewer (click a photo in the gallery). Arrow keys + Esc work. -->
+<div id="lb" hidden>
+  <button id="lb-prev" aria-label="Previous">‹</button>
+  <figure><img id="lb-img" alt=""><figcaption id="lb-cap"></figcaption></figure>
+  <button id="lb-next" aria-label="Next">›</button>
+  <button id="lb-x" aria-label="Close">✕</button>
+</div>
+
+<script>
+/* =====================================================================
+   TURN SECTIONS OFF  -  list the ids of sections you want hidden.
+   A hidden section disappears from the page AND from the Stars sidebar.
+   Delete an id (or the whole list) to bring it back. Nothing is deleted from your content.
+
+   Current ids:  "home"  "blog"  "projects"  "status"  "links"  "findme"  "gallery"
+   (any section you add in SECTIONS below works too - use its id)
+   ===================================================================== */
+const DISABLED = [ "status",
+                   "blog",
+                   "findme"
+  // "status",
+  // "gallery",
+];
+
+/* =====================================================================
+   4. YOUR CONTENT  -  THIS IS THE PART YOU EDIT 99% OF THE TIME
+   =====================================================================
+   Each entry in SECTIONS becomes one box on the page AND one link in the
+   sidebar nav automatically.  To add a new section: copy any entry,
+   paste it where you want it to appear, change the fields. Done.
+
+   Fields every section has:
+     id    - unique, no spaces (used for the #link)
+     title - heading text
+     type  - how it's displayed. One of:
+
+       "text"     -> body: "html string"          (paragraphs, links, <b>, <ul>, anything)
+       "posts"    -> items: [{title, url, date}]  (blog list)
+       "cards"    -> items: [{title, url, desc, status?, steps?}]  (projects; status = text, steps = list of next steps)
+       "buttons"  -> items: [{label, url, img?, color?}]
+                      (img = path to an 88x31 gif/png; without img you get a colored text button)
+       "status"   -> items: [{name, ok}]          (the "systems OK" thing; ok: true/false)
+       "html"     -> body: "raw html"             (escape hatch, same as text but no <p> wrap)
+
+   Optional on any section:  nav: false  -> hide it from the sidebar
+   ===================================================================== */
+
+// Sidebar "I'm ..." status options. "html" (optional) lets you use markup; "cls" is the CSS class that colors it.
+const PRESENCE = {
+  online:   { text: "Online!", cls: "status-ok" },
+  busy:     { text: "Busy",    cls: "status-busy" },
+  away:     { text: "Away",    cls: "muted" },
+  sleeping: { html: 'Sl<span class="dead">e</span>eping', cls: "status-sleeping", note: "(hopefully)" },   // the second "e" is the broken LED
+  thinking: { text: "Lost in thought", cls: "status-thinking" },
+};
+
+// AUTO SCHEDULE. Rules are checked top to bottom, first match wins; anything not covered uses "fallback".
+// Times are 24h "HH:MM". A rule that crosses midnight (23:00 -> 07:00) works fine.
+// tz: "America/Chicago" = Central time and follows daylight saving (CST in winter, CDT in summer).
+//     For fixed CST all year use "Etc/GMT+6".
+const SCHEDULE = {
+  tz: "America/Chicago",
+  fallback: "thinking",
+  rules: [
+    { from: "23:00", to: "07:00", status: "sleeping" },
+    { from: "08:30", to: "19:15", status: "busy" },
+  ],
+};
+function currentPresence() {
+  if (SITE.presence !== "auto") return SITE.presence;            // manual override
+  const t = new Intl.DateTimeFormat("en-US", { timeZone: SCHEDULE.tz, hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(new Date());
+  const now = +t.find(x => x.type === "hour").value * 60 + +t.find(x => x.type === "minute").value;
+  const mins = str => { const [h, m] = str.split(":"); return +h * 60 + +m; };
+  for (const r of SCHEDULE.rules) {
+    const a = mins(r.from), b = mins(r.to);
+    if (a <= b ? (now >= a && now < b) : (now >= a || now < b)) return r.status;
+  }
+  return SCHEDULE.fallback;
+}
+
+// WHAT THE SCHEDULE WINDOW SHOWS (display only; the real switching is SCHEDULE above, so keep the two in sync).
+// status = a key of PRESENCE, detail = small text next to it.
+const SCHEDULE_INFO = [
+  { time: "11:00 PM – 7:00 AM",  status: "sleeping" },
+  { time: "7:00 – 8:30 AM",      status: "thinking", star: true },
+  { time: "8:30 AM – 3:35 PM",   status: "busy", detail: "School" },
+  { time: "3:35 – 4:00 PM",      status: "busy", detail: "Driving" },
+  { time: "4:00 – 7:00 PM",      status: "busy", detail: "Work" },
+  { time: "7:00 – 7:15 PM",      status: "busy", detail: "Driving" },
+  { time: "7:15 – 11:00 PM",     status: "thinking", star: true },
+];
+
+const SITE = {
+  presence: "auto",                    // "auto" = follow SCHEDULE above, or force one: "online" "busy" "away" "sleeping" "thinking"
+  title:   "L0hengrin's Library",      // shown as the flickering neon sign
+  tagline: "My personal deep dive into.. ME! • created Oct 6, 2026",
+  nowPlaying: 'Last seen: <span class="err">ERROR</span>',   // NOTE: wrap this in single quotes so inner "quotes" are safe   // plain text/HTML, edit by hand
+  footer:  "(c) 2026 L0hengrin. All rights reserved.",
+};
+
+const SECTIONS = [
+  {
+    id: "home", title: "Welcome", type: "text",
+    body: `
+      <p>This is my little about me. I have lots to write, talk about, and show off. I don't want to bore most of you, so heres the big stuff.</p>
+      <p>Some quick facts:</p>
+      <ul>
+        <li>I like <b>Coding</b>, <b>Photography</b> (I'm not good), <b>Music</b>, <b>Factory games</b>, <b>One on One conversations</b>, and Thinking about the Feasability of random <b>Sci-Fi Tech</b> like the <b>Oasis Visor</b>, or <b>ONI</b>,  </li>
+        <li>There are a lot of things I want to do, but never get to it, either cause i can't find time, or financially, it's just dumb. For example, I want to get into <b>FPV drones</b>, <b>Sim-Racing</b>, <b>Networking</b>, <b>Robotics</b>, <b>Mocap Software/Hardware Creation</b>, <b>Self Hosting</b>, and World-Wide access to my computer.</li>
+        <li>I can't wait for <b>college</b>. Right now school has me staring at a screen for hours every day, and I hate it, it genuinely <b>hurts my eyes</b>. After I graduate in <b>May</b>, I'm getting an <b>associate's degree</b> in <b>Electromechanical Engineering</b> and <b>Automated Manufacturing Systems Technology</b>. Yeah, it's a little ironic coming from someone who also spends way too much time on their computer for fun, but that's a <i>choice</i>. School screens are not.</li>
+      </ul>`
+  },
+  {
+    id: "blog", title: "Blog", type: "posts",
+    // newest first. Dates are just text, write whatever format you like.
+    items: [
+      { title: "My second post",  url: "#", date: "Oct 6, 2026" },
+      { title: "Hello World!",    url: "#", date: "Oct 1, 2026" },
+    ]
+  },
+  {
+    id: "projects", title: "Projects", type: "cards",
+    items: [
+      { title: "☾ Fixing my PC's Wi-Fi", url: "#", desc: "Diagnosing the high ping and low speeds that come and go, to find out whether it's the PC, the Wi-Fi link, the router or the ISP." },
+      { title: "☾ Homelab", url: "#", desc: "Building a home server for storage, photos and media.",
+        status: "Waiting on GPU",
+        steps: ["Install TrueNAS Scale", "Set up wireless access", "Set up basic services: Immich, Tailscale and Plex"] },
+    ]
+  },
+  {
+    id: "status", title: "Systems status", type: "status",
+    items: [ { name: "mysite.com", ok: true }, { name: "mailserver", ok: true }, { name: "game server", ok: false } ]
+  },
+  {
+    id: "links", title: "Cool sites", type: "buttons",
+    // no img => colored text button. Add img: "images/buttons/foo.gif" for real ones. desc: "..." = text that pops up on hover.
+    items: [
+      { label: "nepu.io",   url: "https://nepu.io",         color: "#8e44ad" },
+      { label: "github",    url: "https://github.com",      color: "#333333", desc: "Where this website is hosted, and home to lots of good repos." },
+      { label: "pixlr",     url: "https://pixlr.com",       color: "#1f6fb5", desc: "A free photo editor and design tool that runs right in your browser, no download needed." },
+      { label: "vrcompare", url: "https://vr-compare.com",  color: "#d35400", desc: "Compare specs, prices and reviews of VR and AR headsets side by side." },
+    ]
+  },
+  {
+    id: "findme", title: "Find me", type: "text", nav: false,
+    body: `<a href="https://github.com/">GitHub</a> ✩ <a href="mailto:you@example.com">E-mail</a>`
+  },
+];
+
+/* NOTE: PERSONAL INFO dropdown in the sidebar. One entry per line: label = colored heading, value = text under it.
+   The box grows to fit however much text you put in. Add/remove lines freely. */
+// NOTE: Age is typed in by hand now. Change the number on your birthday.
+const PERSONAL = [
+  { label: "Name",   value: "(edit me)" },
+  { label: "Age",    value: "16" },
+  { label: "Gender", value: "(edit me)" },
+  { label: "Race",   value: "(edit me)" },
+  { label: "Languages", value: "English, German" },
+  { label: "Timezone",  value: "Central (CST)" },
+  { label: "Relationship status", value: "Single" },
+  // html: instead of value: lets you use markup. Letters get the trans flag colors (blue, pink, white, pink, blue); the + cycles through the rainbow.
+  { label: "Pride", html: '<span class="pride"><span class="pb">L</span><span class="pp">G</span><span class="pw">B</span><span class="pp">T</span><span class="pb">Q</span><span class="plus">+</span></span>' },
+];
+
+/* NOTE: sidebar links that are NOT sections (external sites). Edit freely. */
+const EXTRA_NAV = [
+  { id: "gallery", label: "Gallery", url: "#gallery" },   // <- scrolls down to the photos (add them in section 9)
+  // Opens my Discord profile (with an Add Friend button). blank: true = open in a new tab.
+  // copy: "name" (instead of a url) would make the link copy a username to the clipboard.
+  { label: "Discord", url: "https://discord.com/users/994677558538944602", blank: true },
+];
+
+/* =====================================================================
+   5. RENDERERS  -  one small function per section "type".
+   To invent a NEW type (e.g. "gallery"): add a function here, then use
+   type: "gallery" in SECTIONS. Each returns an HTML string.
+   ===================================================================== */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+const RENDER = {
+  text:    s => s.body,
+  html:    s => s.body,
+  posts:   s => s.items.map(p =>
+             `<div class="post"><a href="${esc(p.url)}">${esc(p.title)}</a><small>${esc(p.date)}</small></div>`).join(""),
+  cards:   s => s.items.map(p =>
+             `<div class="card"><h3><a href="${esc(p.url)}">${esc(p.title)}</a></h3>${esc(p.desc || "")}` +
+             (p.status ? `<div class="st"><b>Status:</b> ${esc(p.status)}</div>` : "") +
+             (p.steps ? `<div class="st"><b>Next steps:</b></div><ol>${p.steps.map(t => `<li>${esc(t)}</li>`).join("")}</ol>` : "") +
+             `</div>`).join(""),
+  buttons: s => `<div class="buttons">` + s.items.map(b => `<span class="btnwrap"${b.desc ? ` data-desc="${esc(b.desc)}"` : ""}>` + (b.img
+             ? `<a class="btn88" href="${esc(b.url)}"><img src="${esc(b.img)}" alt="${esc(b.label)}" loading="lazy"></a>`
+             : `<a class="btn88" style="background:${esc(b.color || "#444")}" href="${esc(b.url)}">${esc(b.label)}</a>`) + `</span>`
+           ).join("") + `</div>`,
+  status:  s => `<div style="font-family:var(--mono)">` + s.items.map(i =>
+             `<div>[ <span style="color:${i.ok ? "#7dffa0" : "#ff7d7d"}">${i.ok ? " OK " : "DOWN"}</span> ] ${esc(i.name)}</div>`).join("") + `</div>`,
+};
+
+/* Build the page once. Using one innerHTML write = fast, no reflow per section. */
+(function build() {
+  // Neon sign: each letter gets its own <span> so single letters can flicker.
+  // NOTE: FLICKER_LETTERS = which letter positions flicker (0 = first letter). Make it [] for none.
+  const FLICKER_LETTERS = [1, 11];
+  document.getElementById("site-title").innerHTML = [...SITE.title].map((c, i) =>
+    `<span${FLICKER_LETTERS.includes(i) ? ' class="fl"' : ""}>${esc(c)}</span>`).join("");
+  document.getElementById("site-tagline").textContent = SITE.tagline;
+  document.getElementById("now-playing").innerHTML    = SITE.nowPlaying;
+  const pe = document.getElementById("presence");
+  const showPresence = () => {
+    const pr = PRESENCE[currentPresence()] || PRESENCE.online;
+    pe.innerHTML = pr.html || esc(pr.text); pe.className = pr.cls;
+    document.getElementById("presence-note").textContent = pr.note || "";   // fine print, only for statuses that have a note
+  };
+  showPresence();
+  setInterval(showPresence, 60000);                  // re-check once a minute (negligible cost)
+  document.getElementById("footer").textContent       = SITE.footer;
+  document.title = SITE.title;
+
+  const ACTIVE = SECTIONS.filter(s => !DISABLED.includes(s.id));   // sections that are switched on
+  document.getElementById("main").innerHTML = ACTIVE.map(s => {
+    const render = RENDER[s.type] || (() => `<i>unknown section type: ${esc(s.type)}</i>`);
+    return `<section class="box" id="${esc(s.id)}"><h2>${esc(s.title)}</h2>${render(s)}</section>`;
+  }).join(`<div class="divider">☾ ✦ ☾</div>`);
+
+  document.getElementById("nav").innerHTML =
+    ACTIVE.filter(s => s.nav !== false).map(s => `<a href="#${esc(s.id)}">✩ ${esc(s.title)}</a>`).join("") +
+    EXTRA_NAV.filter(n => !DISABLED.includes(n.id)).map(n => n.copy
+      ? `<a href="#" data-copy="${esc(n.copy)}" data-label="${esc(n.label)}" title="Click to copy my username">✩ ${esc(n.label)}</a>`
+      : `<a href="${esc(n.url)}"${n.blank ? ' target="_blank" rel="noopener"' : ""}>✩ ${esc(n.label)}</a>`).join("");
+})();
+
+(function personalInfo() {
+  document.getElementById("info-body").innerHTML = PERSONAL.map(p =>
+    `<div class="info-row"><b class="info-label">${esc(p.label)}</b><div class="info-val">${p.html || esc(p.value)}</div></div>`).join("");
+  const btn = document.getElementById("info-btn"), box = document.getElementById("info");
+  btn.addEventListener("click", () => {
+    const open = box.classList.toggle("open");          // CSS does the sliding
+    box.inert = !open;
+    btn.setAttribute("aria-expanded", String(open));
+  });
+})();
+
+(function scheduleInfo() {
+  document.getElementById("sched-body").innerHTML = SCHEDULE_INFO.map(r => {
+    const pr = PRESENCE[r.status] || PRESENCE.online;
+    const detail = r.detail || pr.note || "";
+    return `<div class="sched-row"><span class="t">${esc(r.time)}</span>` +
+           `<span><span class="${pr.cls}">${pr.html || esc(pr.text)}</span>${r.star ? "*" : ""}` +
+           (detail ? ` <span class="d">${esc(detail)}</span>` : "") + `</span></div>`;
+  }).join("");
+  const modal = document.getElementById("sched"), btn = document.getElementById("sched-btn"), x = document.getElementById("sched-x");
+  const open  = () => { modal.hidden = false; x.focus(); };
+  const close = () => { modal.hidden = true; btn.focus(); };
+  btn.addEventListener("click", open);
+  x.addEventListener("click", close);
+  modal.addEventListener("click", e => { if (e.target === modal) close(); });      // click outside the window
+  addEventListener("keydown", e => { if (e.key === "Escape" && !modal.hidden) close(); });
+})();
+
+// Click-to-copy sidebar links (the Discord one): copies the username, then shows "Copied!" for a moment.
+document.getElementById("nav").addEventListener("click", e => {
+  const a = e.target.closest("a[data-copy]");
+  if (!a) return;
+  e.preventDefault();
+  const name = a.dataset.copy, label = a.dataset.label;
+  const show = txt => { a.textContent = "✩ " + txt; clearTimeout(a._t); a._t = setTimeout(() => a.textContent = "✩ " + label, 2500); };
+  (navigator.clipboard ? navigator.clipboard.writeText(name) : Promise.reject())
+    .then(() => show("Copied: " + name), () => show(label + ": " + name));   // if copying is blocked, just show the name
+});
+
+/* SIDEBAR FIT: when Settings / Personal info are open the left column can get taller than the page content.
+   Instead of letting it hang below the last box, nudge the whole sidebar UP by the extra height (smoothly, because it
+   re-runs on every frame of the slide animation). NOTE: MAX_SHIFT = the most it will ever move up, in px,
+   so it never covers the title. Raise it to let the sidebar move up further. Phone layout (stacked) is left alone. */
+(function sidebarFit() {
+  const side = document.getElementById("side"), content = document.getElementById("content");
+  const MAX_SHIFT = 90;
+  const phone = matchMedia("(max-width: 720px)");
+  function fit() {
+    const extra = phone.matches ? 0 : side.offsetHeight - content.offsetHeight;
+    side.style.marginTop = -Math.max(0, Math.min(extra, MAX_SHIFT)) + "px";   // negative margin also shrinks the row, so the page stops growing
+  }
+  new ResizeObserver(fit).observe(side);
+  new ResizeObserver(fit).observe(content);
+  phone.addEventListener("change", fit);
+  fit();
+})();
+
+/* =====================================================================
+   6. SETTINGS (saved per visitor in localStorage; try/catch so it never breaks)
+   To add a new toggle: add a <input data-pref="myThing"> in the HTML above,
+   then read prefs.myThing wherever you need it.
+   ===================================================================== */
+// NOTE: DEFAULT_PREFS = what a first-time visitor gets. randomBg: true = pick a random background every page load.
+const DEFAULT_PREFS = { randomBg: true };
+const prefs = (() => { try { return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem("prefs")) }; } catch { return { ...DEFAULT_PREFS }; } })();
+// The scene shown right now. With randomBg on, it's picked once per page load; picking one in Settings still works until you reload.
+let sceneNow = null;
+function pickScene() {
+  if (!sceneNow) {
+    const all = Object.keys(BUILD);
+    sceneNow = prefs.randomBg ? all[Math.floor(Math.random() * all.length)] : (prefs.scene || DEFAULT_SCENE);
+  }
+  return sceneNow;
+}
+const savePrefs = () => { try { localStorage.setItem("prefs", JSON.stringify(prefs)); } catch {} };
+
+// NOTE: toggles that can't be on together. Turning one on switches the other off. Add more pairs if you like.
+const EXCLUSIVE = [["rainOff", "rainHeavy"]];
+const otherOf = name => { const pair = EXCLUSIVE.find(p => p.includes(name)); return pair && pair.find(n => n !== name); };
+document.querySelectorAll("[data-pref]").forEach(box => {
+  box.checked = !!prefs[box.dataset.pref];
+  box.addEventListener("change", () => {
+    const name = box.dataset.pref;
+    prefs[name] = box.checked;
+    const other = otherOf(name);
+    if (box.checked && other && prefs[other]) {            // turning this on: turn its partner off
+      prefs[other] = false;
+      const ob = document.querySelector(`[data-pref="${other}"]`);
+      if (ob) ob.checked = false;
+    }
+    savePrefs(); applyPrefs();
+  });
+});
+// if old saved settings have both on, keep "Disable rain" and clear the other
+EXCLUSIVE.forEach(([a, b]) => { if (prefs[a] && prefs[b]) { prefs[b] = false; const ob = document.querySelector(`[data-pref="${b}"]`); if (ob) ob.checked = false; } });
+// Settings button (under Stars) slides the settings dropdown open/closed
+const settingsBtn = document.getElementById("settings-btn"), settingsBox = document.getElementById("settings");
+settingsBtn.addEventListener("click", () => {
+  const open = settingsBox.classList.toggle("open");       // CSS does the sliding
+  settingsBox.inert = !open;                                // closed = not tabbable/clickable
+  settingsBtn.setAttribute("aria-expanded", String(open));
+});
+
+function applyPrefs() {
+  const scene = pickScene();
+  setScene(scene);                                  // swap the background (section 11)
+  rain.setEnabled(!prefs.rainOff && scene !== "library");   // no rain indoors
+  rain.setCount(prefs.rainHeavy ? 400 : 120);   // NOTE: raindrop counts (normal / heavy)
+}
+
+/* =====================================================================
+   7. RAIN  -  one canvas, one loop, zero DOM nodes per drop.
+   Efficiency notes: pauses when tab is hidden, stops completely when
+   disabled, and respects the visitor's "reduce motion" OS setting.
+   ===================================================================== */
+const rain = (() => {
+  const cv = document.getElementById("rain"), ctx = cv.getContext("2d");
+  const SPEED  = 14;                       // NOTE: fall speed
+  const SLANT  = 2;                        // NOTE: wind (positive = drifts right)
+  const COLOR  = "rgba(215,195,235,0.3)"; // NOTE: drop color
+  let drops = [], enabled = true, raf = 0, w = 0, h = 0, count = 120, speedMul = 1;
+
+  const mk = () => ({ x: Math.random() * w, y: Math.random() * h, l: 8 + Math.random() * 14, s: SPEED * (0.6 + Math.random() * 0.8) });
+  function resize() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);   // cap DPR so big screens stay cheap
+    w = innerWidth; h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.strokeStyle = COLOR; ctx.lineWidth = 1;
+  }
+  function frame() {
+    ctx.clearRect(0, 0, w, h);
+    ctx.beginPath();                                   // batch ALL drops into one stroke call
+    for (const d of drops) {
+      ctx.moveTo(d.x, d.y); ctx.lineTo(d.x + SLANT, d.y + d.l);
+      d.y += d.s * speedMul; d.x += SLANT * 0.3 * speedMul;
+      if (d.y > h) { d.y = -d.l; d.x = Math.random() * w; }
+    }
+    ctx.stroke();
+    raf = requestAnimationFrame(frame);
+  }
+  function start() { if (!raf && enabled && !document.hidden && !matchMedia("(prefers-reduced-motion: reduce)").matches) raf = requestAnimationFrame(frame); }
+  function stop()  { cancelAnimationFrame(raf); raf = 0; ctx.clearRect(0, 0, w, h); }
+
+  addEventListener("resize", resize);
+  document.addEventListener("visibilitychange", () => document.hidden ? stop() : start());
+  resize();
+  return {
+    setEnabled(v) { enabled = v; v ? start() : stop(); },
+    setCount(n)   { count = n; while (drops.length < n) drops.push(mk()); drops.length = n; },
+  };
+})();
+
+/* =====================================================================
+   9. GALLERY  -  ADD YOUR PHOTOS HERE
+   =====================================================================
+   1) Make a folder called  photos  next to this index.html and drop your images in.
+   2) Add one line per photo to PHOTOS below. Either form works:
+        "photos/cat.jpg",                                   <- just the file
+        { src: "photos/sunset.jpg", caption: "Prague, May" },  <- file + caption
+   Newest at the top if you want them first. Delete the sample (src-less) entries
+   once you add real ones. Tip: resize big photos to ~1600px wide so the page loads fast;
+   images are lazy-loaded, so only the ones on screen are downloaded.
+   ===================================================================== */
+const GALLERY_INTRO = "Click a photo to view it bigger.";
+
+/* AUTO GALLERY: drop an image into the folder below in your GitHub repo and it shows up here by itself.
+   The caption under each photo is the file name (extension dropped, - and _ turned into spaces):  "my_cat-nap.jpg" -> "my cat nap".
+   It asks GitHub which files are in the folder, so it works once the site is on GitHub Pages (a new file can take a
+   couple of minutes to appear: Pages has to rebuild, and the list is cached for 2 minutes).
+     owner / repo - leave "" to auto-detect from an  OWNER.github.io/REPO  address. Fill them in if you use a custom domain.
+     folder       - the folder (next to index.html) that holds the images.     branch - "" = the repo's default branch. */
+const GALLERY_SOURCE = {
+  owner: "", repo: "",
+  folder: "photos", branch: "",
+  types: /\.(png|jpe?g|gif|webp|avif|svg)$/i,          // file types that count as photos
+};
+// Fallback list: only used when the auto-loader can't reach GitHub (e.g. opening the file on your computer).
+const PHOTOS = [
+  { caption: "sample tile - replace me" },        // no src = colored placeholder
+  { caption: "another sample" },
+  { caption: "and another" },
+  // { src: "photos/example2.jpg", caption: "My caption" },
+];
+
+const prettyTitle = name => name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+
+async function listGalleryFiles() {
+  let { owner, repo } = GALLERY_SOURCE;
+  if (!owner || !repo) {                                // auto-detect from https://OWNER.github.io/REPO/
+    const m = location.hostname.match(/^([^.]+)\.github\.io$/i);
+    if (m) { owner = m[1]; const seg = location.pathname.split("/")[1] || ""; repo = seg && !seg.includes(".") ? seg : `${owner}.github.io`; }
+  }
+  if (!owner || !repo) return null;
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${GALLERY_SOURCE.folder}` + (GALLERY_SOURCE.branch ? `?ref=${GALLERY_SOURCE.branch}` : "");
+  const key = "gallery:" + url;
+  try { const c = JSON.parse(localStorage.getItem(key)); if (c && Date.now() - c.t < 120000) return c.list; } catch {}
+  const res = await fetch(url, { headers: { Accept: "application/vnd.github+json" } });
+  if (!res.ok) throw new Error("GitHub " + res.status);
+  const list = (await res.json()).filter(f => f.type === "file" && GALLERY_SOURCE.types.test(f.name)).map(f => f.name)
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));                // name order (1, 2, 10 ...)
+  try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), list })); } catch {}
+  return list;
+}
+
+(async function gallery() {
+  const root = document.getElementById("gallery");
+  if (DISABLED.includes("gallery")) { root.remove(); document.getElementById("gallery-divider").remove(); return; }
+  root.innerHTML = `<section class="box"><h2>Gallery</h2><p class="muted">Loading photos…</p></section>`;
+  let items = PHOTOS.map(p => typeof p === "string" ? { src: p } : p);
+  try {
+    const files = await listGalleryFiles();
+    if (files && files.length) items = files.map(n => ({ src: `${GALLERY_SOURCE.folder}/${encodeURIComponent(n)}`, caption: prettyTitle(n) }));
+  } catch (e) { /* keep the fallback list */ }
+  const real = items.filter(p => p.src);                 // only real photos open in the viewer
+  let r = 0;
+  root.innerHTML = `<section class="box"><h2>Gallery</h2><p class="muted">${GALLERY_INTRO}</p><div class="gallery">` +
+    items.map((p, i) => p.src
+      ? `<figure data-r="${r++}"><img src="${esc(p.src)}" alt="${esc(p.caption || "")}" loading="lazy" decoding="async">` +
+        (p.caption ? `<figcaption>${esc(p.caption)}</figcaption>` : "") + `</figure>`
+      : `<figure class="ph" style="--hue:${(i * 67) % 360}"><div style="height:${110 + (i * 41) % 110}px"></div>` +
+        `<figcaption>${esc(p.caption || "add a photo")}</figcaption></figure>`).join("") +
+    `</div></section>`;
+  // a photo that fails to load (e.g. Pages hasn't finished publishing it yet) just disappears instead of showing a broken icon
+  root.addEventListener("error", e => {
+    const f = e.target.tagName === "IMG" && e.target.closest("figure[data-r]");
+    if (f) { real[+f.dataset.r].bad = true; f.remove(); }
+  }, true);
+
+  const lb = document.getElementById("lb"), img = document.getElementById("lb-img"), cap = document.getElementById("lb-cap");
+  let cur = 0;
+  const show = (n, dir = 1) => {
+    for (let i = 0; i < real.length; i++) { cur = (n + real.length) % real.length; if (!real[cur].bad) break; n += dir; }   // skip broken ones
+    img.src = real[cur].src; cap.textContent = real[cur].caption || "";
+  };
+  const close = () => { lb.hidden = true; img.src = ""; };
+  root.addEventListener("click", e => {                  // one listener for all photos
+    const f = e.target.closest("figure[data-r]");
+    if (f) { show(+f.dataset.r); lb.hidden = false; }
+  });
+  document.getElementById("lb-prev").onclick = () => show(cur - 1, -1);
+  document.getElementById("lb-next").onclick = () => show(cur + 1);
+  document.getElementById("lb-x").onclick = close;
+  lb.addEventListener("click", e => { if (e.target === lb) close(); });
+  addEventListener("keydown", e => {
+    if (lb.hidden) return;
+    if (e.key === "Escape") close();
+    else if (e.key === "ArrowLeft") show(cur - 1, -1);
+    else if (e.key === "ArrowRight") show(cur + 1);
+  });
+})();
+
+/* =====================================================================
+   10. ADDING MORE "PAGES"
+   There's no router anymore: everything is one long scrolling page.
+   To add a page-like block, just add another section in SECTIONS (section 4)
+   - it gets its own box + sidebar link automatically. The gallery is the same idea,
+   it just lives in its own <main id="gallery"> because it's built by section 9's code.
+   ===================================================================== */
+
+/* =====================================================================
+   11. SKYLINE  -  buildings drawn once as SVG (no images to load)
+   Each layer is a row of random buildings, back-to-front (far/dim first, near/dark last).
+     seed       - change the number to get a different city
+     fill       - building color      win - window color      winAlpha - window brightness
+     minH/maxH  - building height range    minW/maxW - width range
+     lit        - chance (0-1) that a window is lit
+     shift      - parallax: pixels this layer slides up over the whole page scroll
+   ===================================================================== */
+const SKYLINE = {
+  seed: 7,
+  layers: [
+    { fill: "#241a2b", win: "#ffd98a", winAlpha: .15, lit: .18, minH: 170, maxH: 360, minW: 50, maxW: 100, shift: 8  },  // very far (tall, faint)
+    { fill: "#1b1322", win: "#ffd98a", winAlpha: .35, lit: .22, minH: 110, maxH: 290, minW: 40, maxW: 90,  shift: 18 },  // far
+    { fill: "#100b16", win: "#ffd98a", winAlpha: .75, lit: .30, minH: 90,  maxH: 240, minW: 50, maxW: 110, shift: 35 },  // near
+  ],
+};
+/* ---- EXTRA SCENES (the city above is the "city" scene). Edit freely. ----
+   DEFAULT_SCENE = what first-time visitors see. They can switch in Settings -> Background.
+   To add a scene: write a layer function, add it to BUILD, add a radio in the Settings HTML,
+   and style it in the CSS "SCENES" block (section 8). */
+const DEFAULT_SCENE = "city";      // "city" | "forest" | "library"
+
+// FOREST: rows of pine trees. minH/maxH/minW/maxW = tree size, step = spacing (lower = denser), fill = color
+const FOREST = { seed: 11, layers: [
+  { fill: "#17301f", minH: 170, maxH: 340, minW: 60, maxW: 100, step: .55, shift: 8  },   // far
+  { fill: "#10241a", minH: 130, maxH: 300, minW: 60, maxW: 110, step: .6,  shift: 18 },
+  { fill: "#09160f", minH: 90,  maxH: 260, minW: 70, maxW: 120, step: .7,  shift: 35 },   // near
+]};
+
+// LIBRARY: 3 layers, back to front: (1) the wall itself (wallpaper, moonlit windows, warm wall lamps),
+// (2) a row of distant bookcases (grid:true) with the "Anorack's Almanac" book, (3) big freestanding bookcases up front.
+// wall/plank/hi = colors, shelfH = shelf spacing, bookH = [min,max] book height, h/w/gap = bookcase size ranges,
+// dim = layer opacity, glow = number of warm lamp glows, clear = [x1,x2] zone the front cases leave open so the almanac shows.
+const LIBRARY = { seed: 5, layers: [
+  { kind: "wall", shift: 6 },
+  { kind: "shelves", wall: "#121829", plank: "#5a3b25", hi: "#8a5e3a", shelfH: 66, bookH: [30, 54], dim: .65, grid: true, h: [170, 300], glow: 3, title: "Anorack's Almanac", shift: 14 },
+  { kind: "shelves", wall: "#0b0f1e", plank: "#6b4528", hi: "#a07046", shelfH: 74, bookH: [32, 62], dim: 1, h: [240, 380], w: [170, 270], gap: [40, 130], clear: [1110, 1300], glow: 2, shift: 30 },
+]};
+
+const WD = 1600, HT = 420, EX = 80;                         // drawing size (EX = extra body below the floor line)
+const makeRnd = seed => { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; };
+
+function cityLayer(L, rnd) {
+  let x = -rnd() * 40, body = "", wins = "";
+  while (x < WD) {
+    const w = L.minW + rnd() * (L.maxW - L.minW), h = L.minH + rnd() * (L.maxH - L.minH), y = HT - h;
+    body += `M${x | 0} ${HT + EX}V${y | 0}H${(x + w) | 0}V${HT + EX}z`;
+    if (rnd() < .25) body += `M${(x + w / 2) | 0} ${(y - 18) | 0}h2v18h-2z`;              // antenna
+    for (let wy = y + 10; wy < HT - 8; wy += 14)
+      for (let wx = x + 7; wx < x + w - 9; wx += 12)
+        if (rnd() < L.lit) wins += `M${wx | 0} ${wy | 0}h5v7h-5z`;
+    x += w + rnd() * 8;
+  }
+  // one <path> for all buildings + one for all windows = very cheap to draw
+  return `<path d="${body}" fill="${L.fill}"/><path d="${wins}" fill="${L.win}" opacity="${L.winAlpha}"/>`;
+}
+
+function forestLayer(L, rnd) {
+  let x = -rnd() * 40, d = "";
+  while (x < WD) {
+    const w = L.minW + rnd() * (L.maxW - L.minW), h = L.minH + rnd() * (L.maxH - L.minH), y = HT - h, cx = x + w / 2;
+    const P = (px, py) => `${(cx + px * w) | 0} ${(y + py * h) | 0}`;                    // point relative to the tree
+    d += `M${P(0, 0)}L${P(.2, .3)}L${P(.1, .3)}L${P(.32, .62)}L${P(.18, .62)}L${P(.5, 1)}` +
+         `L${(cx + .5 * w) | 0} ${HT + EX}L${(cx - .5 * w) | 0} ${HT + EX}L${P(-.5, 1)}L${P(-.18, .62)}L${P(-.32, .62)}L${P(-.1, .3)}L${P(-.2, .3)}z`;
+    x += w * L.step + rnd() * 18;
+  }
+  return `<path d="${d}" fill="${L.fill}"/>`;
+}
+
+function libraryWall(L, rnd) {
+  const T = HT + EX; let st = "", win = "", lamps = "";
+  for (let x = 0; x < WD; x += 36) st += `M${x} -3000h3V${T}h-3z`;                                  // wallpaper stripes
+  for (const cx of [360, 800, 1240])                                                           // arched windows with a night sky
+    win += `<path d="M${cx - 48} 250V110A48 48 0 0 1 ${cx + 48} 110V250z" fill="url(#sk)" stroke="#6b4528" stroke-width="7"/>` +
+           `<path d="M${cx} 62V250M${cx - 48} 170H${cx + 48}" stroke="#6b4528" stroke-width="4"/>`;
+  for (const cx of [170, 580, 1020, 1430])                                                     // brass wall lamps with warm light
+    lamps += `<circle cx="${cx}" cy="190" r="150" fill="url(#wl)"/><path d="M${cx - 7} 182h14l-3 16h-8z" fill="#ffd78a"/><path d="M${cx - 2} 166h4v16h-4z" fill="#8a6a2c"/>`;
+  return `<defs><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d4f8f"/><stop offset="1" stop-color="#0f1a38"/></linearGradient>` +
+         `<radialGradient id="wl"><stop offset="0" stop-color="#ffb454" stop-opacity=".5"/><stop offset="1" stop-color="#ffb454" stop-opacity="0"/></radialGradient></defs>` +
+         `<rect y="-3000" width="${WD}" height="${T + 3000}" fill="#17203a"/><path d="${st}" fill="#22305a" opacity=".5"/>${win}` +
+         `<rect y="330" width="${WD}" height="${T - 330}" fill="#2a1c12"/><rect y="330" width="${WD}" height="6" fill="#5a3b25"/>${lamps}`;
+}
+
+function libraryLayer(L, rnd) {
+  if (L.kind === "wall") return libraryWall(L, rnd);
+  const pal = ["#7a2e3a", "#2f5a52", "#3a4a85", "#8a6a2c", "#5a3a72", "#a0522d", "#3b4a30", "#6b5a44", "#2c4a6e", "#8c3b5a"];   // book colors
+  const books = pal.map(() => ""); let back = "", wood = "", hi = "", bands = "", glow = "", titled = "";
+  const bays = [], pick = r => r[0] + rnd() * (r[1] - r[0]);
+  if (L.grid) for (let x = 20; x < WD; x += 220) bays.push([x, x + 170, HT - pick(L.h)]);
+  else { let x = rnd() * 40; while (x < WD) { const w = pick(L.w);
+    if (L.clear && x + w > L.clear[0] && x < L.clear[1]) { x = L.clear[1]; continue; }       // leave this spot open
+    bays.push([x, x + w, HT - pick(L.h)]); x += w + pick(L.gap); } }
+  for (const [x0, x1, y0] of bays) {
+    const W = (x1 - x0) | 0;
+    back += `M${x0 | 0} ${HT + EX}V${y0 | 0}H${x1 | 0}V${HT + EX}z`;
+    wood += `M${(x0 - 5) | 0} ${y0 | 0}h5V${HT + EX}h-5z M${x1 | 0} ${y0 | 0}h5V${HT + EX}h-5z M${(x0 - 8) | 0} ${(y0 - 7) | 0}h${W + 16}v8h-${W + 16}z`;
+    for (let y = HT, r = 0; y > y0 + L.shelfH * .6; y -= L.shelfH, r++) {
+      wood += `M${x0 | 0} ${y}h${W}v5h-${W}z`; hi += `M${x0 | 0} ${y}h${W}v1.5h-${W}z`;
+      let x = x0 + 5;
+      if (L.title && x0 === 1120 && r === 1) {                                                // THE ALMANAC: a flat book lying on this shelf
+        titled = `<rect x="${x0 + 10}" y="${y - 17}" width="104" height="17" rx="1.5" fill="#6e2433"/><path d="M${x0 + 10} ${y - 14}h104M${x0 + 10} ${y - 3}h104" stroke="#e0b968" stroke-width="1" opacity=".7"/>` +
+                 `<text x="${x0 + 62}" y="${y - 5.5}" font-size="9.5" text-anchor="middle" font-family="Georgia, serif" font-style="italic" fill="#f0d9a0">${L.title}</text>`;
+        x = x0 + 120;
+      }
+      for (; x < x1 - 14;) {
+        if (rnd() < .05) {                                                                    // small stack of flat books
+          const sw = 26 + rnd() * 10; let sy = y;
+          for (let k = 0; k < 2 + (rnd() * 2 | 0); k++) { sy -= 7; books[(rnd() * pal.length) | 0] += `M${x | 0} ${sy}h${sw | 0}v6h-${sw | 0}z`; }
+          x += sw + 6; continue;
+        }
+        const w = 6 + rnd() * 9, h = Math.min(L.shelfH - 12, L.bookH[0] + rnd() * (L.bookH[1] - L.bookH[0]));
+        if (rnd() > .06) {
+          books[(rnd() * pal.length) | 0] += `M${x | 0} ${y}v-${h | 0}h${w | 0}v${h | 0}z`;
+          if (rnd() < .5) bands += `M${x | 0} ${(y - h * .7) | 0}h${w | 0}v2h-${w | 0}z`;
+        }
+        x += w + 1;
+      }
+    }
+  }
+  for (let g = 0; g < L.glow; g++) glow += `<circle cx="${(rnd() * WD) | 0}" cy="${(HT - 70 - rnd() * 150) | 0}" r="170" fill="url(#lg${L.shift})"/>`;
+  return `<defs><radialGradient id="lg${L.shift}"><stop offset="0" stop-color="#ffc46b" stop-opacity=".3"/><stop offset="1" stop-color="#ffc46b" stop-opacity="0"/></radialGradient></defs>` +
+         `<g opacity="${L.dim}"><path d="${back}" fill="${L.wall}"/>` + books.map((d, i) => `<path d="${d}" fill="${pal[i]}"/>`).join("") +
+         `<path d="${bands}" fill="#e0b968" opacity=".45"/><path d="${wood}" fill="${L.plank}"/><path d="${hi}" fill="${L.hi}"/>${titled}${glow}</g>`;
+}
+
+const BUILD = { city: [SKYLINE, cityLayer], forest: [FOREST, forestLayer], library: [LIBRARY, libraryLayer] };
+
+function setScene(name) {
+  if (!BUILD[name]) name = "city";
+  if (document.body.dataset.scene === name) return;           // already showing it
+  document.body.dataset.scene = name;                          // CSS reacts to this
+  const [cfg, draw] = BUILD[name], rnd = makeRnd(cfg.seed), host = document.getElementById("skyline");
+  host.textContent = "";
+  for (const L of cfg.layers) {
+    const d = document.createElement("div");
+    d.className = "sky-layer" + (L.kind === "wall" ? " wall" : "");
+    d.style.setProperty("--shift", `-${L.shift}px`);
+    d.innerHTML = `<svg viewBox="0 0 ${WD} ${HT + EX}" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">${draw(L, rnd)}</svg>`;
+    host.appendChild(d);
+  }
+}
+
+// background picker radios (checked state comes from saved prefs)
+document.querySelectorAll('input[name="scene"]').forEach(r => {
+  r.checked = r.value === pickScene();
+  r.addEventListener("change", () => { prefs.scene = r.value; sceneNow = r.value; savePrefs(); applyPrefs(); });
+});
+
+/* =====================================================================
+   12. SCROLL PARALLAX
+   Only writes ONE css variable (--p) once per frame; the CSS does the moving
+   (GPU transforms, no layout work). Turned off for "reduce motion" visitors.
+   ===================================================================== */
+(function parallax() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const root = document.documentElement;
+  let queued = false;
+  const update = () => {
+    queued = false;
+    const max = root.scrollHeight - innerHeight;
+    root.style.setProperty("--p", max > 0 ? Math.min(scrollY / max, 1).toFixed(4) : "0");
+  };
+  addEventListener("scroll", () => { if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
+  addEventListener("resize", update);
+  update();
+})();
+
+/* =====================================================================
+   13. STARS
+   Most stars are painted ONCE on a canvas (free after that). A few extra ones are
+   tiny elements that twinkle with a CSS opacity animation (cheap, runs on the GPU).
+     COUNT   - painted stars          TWINKLE - twinkling stars
+     BIAS    - >1 puts more stars near the top of the screen (1 = even)
+   ===================================================================== */
+const STARS = { seed: 42, COUNT: 260, TWINKLE: 30, BIAS: 1.5 };
+(function stars() {
+  let s = STARS.seed;
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  // generate positions once as fractions (0-1) so a resize just redraws them
+  const pts = Array.from({ length: STARS.COUNT }, () => ({
+    x: rnd(), y: Math.pow(rnd(), STARS.BIAS), r: .4 + rnd() * 1.1, a: .25 + rnd() * .65, warm: rnd() < .25 }));
+  const cv = document.getElementById("stars"), ctx = cv.getContext("2d");
+  function draw() {
+    const dpr = Math.min(devicePixelRatio || 1, 2), w = innerWidth, h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (const p of pts) {
+      ctx.globalAlpha = p.a; ctx.fillStyle = p.warm ? "#ffe6b0" : "#fff";
+      ctx.beginPath(); ctx.arc(p.x * w, p.y * h, p.r, 0, 6.2832); ctx.fill();
+    }
+  }
+  draw(); addEventListener("resize", draw);
+  const frag = document.createDocumentFragment();       // one insert for all twinklers
+  for (let i = 0; i < STARS.TWINKLE; i++) {
+    const t = document.createElement("i");
+    t.className = "tw";
+    t.style.cssText = `left:${(rnd() * 100).toFixed(1)}%;top:${(Math.pow(rnd(), STARS.BIAS) * 100).toFixed(1)}%;` +
+      `--d:${(2 + rnd() * 4).toFixed(1)}s;--dl:-${(rnd() * 6).toFixed(1)}s`;
+    frag.appendChild(t);
+  }
+  document.getElementById("sky").appendChild(frag);
+})();
+
+applyPrefs();
+</script>
+</body>
+</html>
